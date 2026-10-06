@@ -1,4 +1,4 @@
-# server-replay-filter 実装計画
+# Optimize Server Replay 実装計画
 
 ServerReplay のチャンク録画（Flashback 形式）で、タイムラプス用途に不要なパケットを削減するアドオン mod。
 
@@ -9,7 +9,8 @@ ServerReplay のチャンク録画（Flashback 形式）で、タイムラプス
 | 形態 | ServerReplay のアドオン。サーバー専用の Fabric mod（Java） |
 | 対象バージョン | MC 1.21.11 / ServerReplay 3.3.1+1.21.11（同梱 Arcade 0.8.1-beta.39+1.21.11） |
 | 適用範囲 | **チャンク録画（`ReplayChunkRecorder`）のみ**。プレイヤー録画には一切適用しない |
-| mod ID（仮） | `server-replay-filter` |
+| mod ID | `optimize-server-replay` |
+| パッケージ | `com.panyaaa256.optimizeserverreplay` |
 
 ### 提供する機能
 
@@ -38,7 +39,7 @@ ServerReplay と同じ方式（JSON をスネークケースのキーで手書�
 
 ### ファイル
 
-`config/server-replay-filter/config.json`（初回起動時に初期値で自動生成）
+`config/optimize-server-replay/config.json`（初回起動時に初期値で自動生成）
 
 ```json
 {
@@ -238,10 +239,10 @@ ServerReplay と同じ方式（JSON をスネークケースのキーで手書�
 ## 7. プロジェクト構成
 
 ```
-server-replay-filter/
-├─ build.gradle                 Loom / Java 21 / MC 1.21.11 / mojmap
-├─ src/main/java/<package>/
-│  ├─ ReplayFilterMod.java              初期化・設定読み込み
+optimize-server-replay/
+├─ build.gradle                 Loom 1.18 / Java 21 / MC 1.21.11 / mojmap（ビルドの実行には JDK 25 が必要）
+├─ src/main/java/com/panyaaa256/optimizeserverreplay/
+│  ├─ OptimizeServerReplay.java         初期化・設定読み込み
 │  ├─ config/FilterConfig.java          Gson・初期値・検証・録画ごとの固定コピー
 │  ├─ entity/EntityPackets.java         エンティティ系パケットのセット・ID 取り出し
 │  ├─ entity/EntityFilter.java          録画ごとの状態（残す ID セット）
@@ -253,8 +254,10 @@ server-replay-filter/
 │     └─ accessor/*Accessor.java        private なエンティティ ID の取り出し
 └─ src/main/resources/
    ├─ fabric.mod.json                   environment: server / depends: minecraft 1.21.11, server-replay >=3.3.1
-   └─ server-replay-filter.mixins.json
+   └─ optimize-server-replay.mixins.json
 ```
+
+雛形（fabric-example-mod の 1.21.11 ブランチ）から作成済み。現時点であるのは `OptimizeServerReplay.java`、`fabric.mod.json`、`optimize-server-replay.mixins.json` と、テンプレートの見本の `mixin/ExampleMixin.java`。`ExampleMixin.java` は最初の mixin を追加するときに削除する。
 
 ### 依存関係
 
@@ -276,7 +279,7 @@ server-replay-filter/
 4. **Block Action**
 5. **ブロック変化のまとめ**：取り込み → 書き出し → チャンク区切り・停止・一時停止への対応
 6. **テスト**（下記）
-7. **README**：キー一覧の表、ServerReplay 側の推奨設定、プレイヤーの扱い（10 章）
+7. **README**：`README.md` と `README.ja.md` に、キー一覧の表、ServerReplay 側の推奨設定、プレイヤーの扱い（10 章）を追記し、「フィルターは未実装」の注記を外す
 
 ---
 
