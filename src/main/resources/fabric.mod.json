@@ -9,7 +9,7 @@
 	],
 	"license": "MIT",
 	"icon": "assets/optimize-server-replay/icon.png",
-	"environment": "*",
+	"environment": "server",
 	"entrypoints": {
 		"main": [
 			"com.panyaaa256.optimizeserverreplay.OptimizeServerReplay"
