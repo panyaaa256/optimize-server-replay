@@ -7,7 +7,7 @@ ServerReplay のチャンク録画（Flashback 形式）で、タイムラプス
 | 項目 | 内容 |
 |---|---|
 | 形態 | ServerReplay のアドオン。サーバー専用の Fabric mod（Java） |
-| 対象バージョン | MC 1.21.11 / ServerReplay 3.3.1+1.21.11（同梱 Arcade 0.8.1-beta.39+1.21.11） |
+| 対象バージョン | MC 1.21.11 / ServerReplay 3.3.1+1.21.11（Modrinth で配布されている jar。同梱 Arcade は 0.8.1-beta.37+1.21.11） |
 | 適用範囲 | **Flashback 形式のチャンク録画（`ReplayChunkRecorder`）のみ**。ReplayMod 形式のチャンク録画と、プレイヤー録画には一切適用しない |
 | mod ID | `optimize-server-replay` |
 | パッケージ | `com.panyaaa256.optimizeserverreplay` |
@@ -92,7 +92,9 @@ ServerReplay と同じ方式（JSON をスネークケースのキーで手書�
 
 ## 3. フック箇所
 
-ServerReplay 3.3.1（`1.21.11` ブランチ）と、それが使う Arcade 0.8.1-beta.39 のソースで存在を確認済み。Arcade の最新 beta.48 でも、下記のメソッドは変わっていない。
+ServerReplay の `1.21.11` ブランチと、それが使う Arcade 0.8.1-beta.39 のソースで存在を確認済み。Arcade の最新 beta.48 でも、下記のメソッドは変わっていない。
+
+Modrinth で配布されている ServerReplay 3.3.1+1.21.11 の jar が同梱するのは Arcade 0.8.1-beta.37 で、ブランチのソースより古い。この jar でも下記の 7 箇所があることを `javap` で確認し、骨組みだけの mod を入れたサーバーを起動して、7 箇所すべてにフックが注入されることも確認した（11 章）。コンパイルは beta.37 に対して行う。
 
 | 対象 | 注入位置 | 用途 |
 |---|---|---|
@@ -321,12 +323,16 @@ optimize-server-replay/
 ├─ build.gradle                 Loom 1.18 / Java 21 / MC 1.21.11 / mojmap（ビルドの実行には JDK 25 が必要）
 ├─ src/main/java/com/panyaaa256/optimizeserverreplay/
 │  ├─ OptimizeServerReplay.java         初期化・設定読み込み
-│  ├─ config/FilterConfig.java          Gson・初期値・検証・録画ごとの固定コピー
+│  ├─ RecordingFilter.java              録画ごとのフィルター。フックから呼ばれ、下の各機能へ振り分ける
+│  ├─ RecordingFilterHolder.java        ReplayRecorderMixin が実装するインターフェース
+│  ├─ HookStatus.java                   フックがすべて当たったかの結果
+│  ├─ config/FilterConfig.java          Gson・初期値・検証（不変の record。録画は開始時のものを持ち続ける）
 │  ├─ entity/EntityPackets.java         エンティティ系パケットのセット・ID 取り出し
 │  ├─ entity/EntityFilter.java          録画ごとの状態（残す ID セット）
+│  ├─ block/BlockActionFilter.java      Block Action の判定
 │  ├─ block/BlockUpdateBuffer.java      録画ごとの状態（変化セクション・プール・書き出し）
 │  └─ mixin/
-│     ├─ OptimizeServerReplayMixinPlugin.java  フックがすべて当たったかの確認
+│     ├─ OptimizeServerReplayMixinPlugin.java  フックがすべて当たったかの確認（結果は HookStatus へ）
 │     ├─ ReplayRecorderMixin.java       <init> / canRecordPacket / tick / pause / stop
 │     ├─ FlashbackWriterMixin.java      startNewReplayChunk
 │     ├─ ServerReplayMixin.java         reload
@@ -336,12 +342,16 @@ optimize-server-replay/
    └─ optimize-server-replay.mixins.json  required: false / defaultRequire: 0 / plugin を指定
 ```
 
-雛形（fabric-example-mod の 1.21.11 ブランチ）から作成済み。現時点であるのは `OptimizeServerReplay.java`、`fabric.mod.json`、`optimize-server-replay.mixins.json` と、テンプレートの見本の `mixin/ExampleMixin.java`。`ExampleMixin.java` は最初の mixin を追加するときに削除する。
+雛形（fabric-example-mod の 1.21.11 ブランチ）から作成した。
+
+骨組みは実装済み：mixin 3 本、`RecordingFilter`、`RecordingFilterHolder` は完成していて、`FilterConfig`、`EntityFilter`、`BlockActionFilter`、`BlockUpdateBuffer`、`HookStatus`、mixin プラグインは、メソッドの形だけを決めた雛形になっている。各機能はこの雛形の中身を実装する。
+
+`HookStatus` と結果の受け渡し先を mixin パッケージの外に置くのは、mixin パッケージの中のクラスを通常のコードから参照できないため。
 
 ### 依存関係
 
-- ServerReplay：`modCompileOnly`（Modrinth maven）
-- Arcade（arcade-replay）：`modCompileOnly`（`maven.supersanta.me`、`net.casualchampionships:arcade-replay:0.8.1-beta.39+1.21.11`）。実行時は ServerReplay に同梱されたものを使う
+- ServerReplay：コンパイル時の依存にはしない。`ServerReplay` への mixin はクラス名の文字列（`@Mixin(targets = ...)`）で指定するので、クラスを参照しない
+- Arcade（arcade-replay）：`modCompileOnly`（`https://maven.supersanta.me/snapshots`、`net.casualchampionships:arcade-replay:0.8.1-beta.37+1.21.11`、`transitive = false`）。実行時は ServerReplay に同梱されたものを使う
 - fastutil：MC 同梱のものを使う
 - Fabric API：使わないので依存から外す。雛形に入っている `build.gradle` の `modImplementation`、`gradle.properties` の `fabric_api_version`、`fabric.mod.json` の `depends` を削除する。ServerReplay が Fabric API を必須にしているため、サーバーに入れる必要があること自体は変わらない
 
@@ -349,13 +359,10 @@ optimize-server-replay/
 
 ## 8. 実装手順
 
-1. **下調べ**：ソースでの確認は済んでいる（3 章・11 章）。残りは、実際に使う jar を `javap` で確認すること
-   - `ReplayRecorder.canRecordPacket` / `tick` / `pause(Z)` / `stop(Z)` の記述子
-   - 引数なしの `stop()` / `pause()` の呼び出し（Kotlin 側の `stop$default` を含む）が、`stop(Z)` / `pause(Z)` を通ること
-   - Kotlin のコンパイル結果として、`FlashbackWriter.startNewReplayChunk` が private のまま残っているか
+1. **下調べ**（済み。結果は 11 章）：実際に使う jar を `javap` で確認した。残りは次の 2 点で、それぞれの機能の実装で確かめる
    - 各パケットの ID フィールド名・アクセサ名（MC 1.21.11 の jar。クラス名は確認済み）
    - mixin プラグインで、フックが当たったかどうかを何で判断できるか
-2. **依存の整理**：Fabric API を外し、ServerReplay と Arcade を `modCompileOnly` で足す（7 章）
+2. **依存の整理と骨組み**（済み）：Fabric API を外し、Arcade を `modCompileOnly` で足す。mixin 3 本と、各機能の雛形を作る（7 章）
 3. **設定と再読み込み**：ファイル生成・検証・`/replay reload` 連動、mixin プラグインによるフックの確認
 4. **エンティティ選別**：全消し → ホワイトリストの順
 5. **Block Action**
@@ -456,6 +463,23 @@ ServerReplay 3.3.1（`1.21.11` ブランチ）と Arcade 0.8.1-beta.39（ServerR
 - エンティティの消滅は、`TrackedEntityMixin` の `removeRecorder` / `removeAllRecorders` が ID 1 つの `ClientboundRemoveEntitiesPacket` を作って `record()` する
 - `ServerReplay` は Kotlin の `object` で、`reload()` に `@JvmStatic` は付いていない（インスタンスメソッド）
 - vanilla クライアントは、未知のエンティティ ID を参照するパケット（乗り物、紐、拾得など）を無視する
+
+### 配布されている jar で確認したこと
+
+Modrinth の ServerReplay 3.3.1+1.21.11 の jar と、その中の `arcade-replay-0.8.1-beta.37+1.21.11.jar` を `javap` で確認した。
+
+- 同梱されている Arcade は 0.8.1-beta.37（`1.21.11` ブランチのソースが指す beta.39 より古い）
+- `ReplayRecorder` のコンストラクタは 1 つで、引数は `(MinecraftServer, GameProfile, RecorderSettings, ReplayFormat, Path)`
+- `canRecordPacket(Packet)` は `protected` で戻り値は `boolean`、`tick()` は `public void`、`pause(boolean)` は `public final boolean`、`stop(boolean)` は `public final CompletableFuture<Long>`
+- 引数なしの `pause()` / `stop()` と、Kotlin 側が使う `pause$default` / `stop$default` は、どれも `pause(Z)` / `stop(Z)` を呼ぶ
+- `FlashbackWriter.startNewReplayChunk()` は `private final void` のまま残っている
+- `ReplayRecorder` には `getServer()` / `getFormat()` / `getPaused()` / `getLevel()` / `record(Packet)` が、`ReplayChunkRecorder` には `getDummyPlayer()` がある
+- `ServerReplay.reload()` は `public final void` のインスタンスメソッド
+
+骨組みだけの mod をビルドし、Fabric Loader 0.19.5、Fabric API、Fabric Language Kotlin、上記の ServerReplay を入れたサーバーを起動して確認した。
+
+- 起動、チャンク録画（Flashback 形式）の開始、停止と保存まで、例外なく動く
+- `-Dmixin.debug.export=true` で書き出したクラスに、7 箇所すべてのフックの呼び出しが入っている。注入されたメソッドの名前は `handler$<英数字>$optimize-server-replay$<元の名前>` になる
 
 ### MC 1.21.11 の jar で確認したこと
 
