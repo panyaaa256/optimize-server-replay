@@ -1,0 +1,27 @@
+{
+	"schemaVersion": 1,
+	"id": "optimize-server-replay",
+	"version": "${version}",
+	"name": "Optimize Server Replay",
+	"description": "Reduces the load of Server Replay recordings by filtering the packets that get recorded.",
+	"authors": [
+		"panyaaa256"
+	],
+	"license": "MIT",
+	"icon": "assets/optimize-server-replay/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.panyaaa256.optimizeserverreplay.OptimizeServerReplay"
+		]
+	},
+	"mixins": [
+		"optimize-server-replay.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~1.21.11",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}
