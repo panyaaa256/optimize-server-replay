@@ -6,7 +6,10 @@
 	"mixins": [
 		"FlashbackWriterMixin",
 		"ReplayRecorderMixin",
-		"ServerReplayMixin"
+		"ServerReplayMixin",
+		"accessor.ClientboundEntityEventPacketAccessor",
+		"accessor.ClientboundMoveEntityPacketAccessor",
+		"accessor.ClientboundRotateHeadPacketAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 0
