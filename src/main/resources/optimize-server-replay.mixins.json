@@ -1,12 +1,15 @@
 {
-	"required": true,
+	"required": false,
 	"package": "com.panyaaa256.optimizeserverreplay.mixin",
+	"plugin": "com.panyaaa256.optimizeserverreplay.mixin.OptimizeServerReplayMixinPlugin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
-		"ExampleMixin"
+		"FlashbackWriterMixin",
+		"ReplayRecorderMixin",
+		"ServerReplayMixin"
 	],
 	"injectors": {
-		"defaultRequire": 1
+		"defaultRequire": 0
 	},
 	"overwrites": {
 		"requireAnnotations": true
