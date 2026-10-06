@@ -17,7 +17,7 @@ ServerReplay のチャンク録画（Flashback 形式）で、タイムラプス
 1. `ignore_entities`：エンティティ系パケットを記録しない
 2. `entity_whitelist`：`ignore_entities` 有効時に、指定した種類のエンティティだけ残す
 3. `ignore_block_action`：Block Action（ピストンの伸縮アニメーション等）を記録しない
-4. `block_update_interval_ticks`：ブロック変化を n tick ごとにまとめる（0 で無効）
+4. `block_update_interval_ticks`：ブロック変化を n tick ごとにまとめる（0 で無効）。有効時はピストンの Block Action だけを自動で捨てる
 
 爆発パケットは削減効果が小さいため（今回のリプレイで約 0.2%）対象外。
 
@@ -62,8 +62,8 @@ ServerReplay と同じ方式（JSON をスネークケースのキーで手書�
 |---|---|---|---|
 | `ignore_entities` | bool | `false` | エンティティ系パケットを記録しない |
 | `entity_whitelist` | エンティティ ID の配列 | `["minecraft:player", "minecraft:minecart", "minecraft:hopper_minecart", "minecraft:item_frame", "minecraft:glow_item_frame"]` | `ignore_entities` が true のとき、ここに書いた種類だけ残す。空配列ならエンティティをすべて消す。`ignore_entities` が false なら無視 |
-| `ignore_block_action` | bool | `false` | `ClientboundBlockEventPacket` を記録しない。`block_update_interval_ticks` が 1 以上なら、この値に関係なく自動で有効 |
-| `block_update_interval_ticks` | int | `0` | 0 ならブロック変化をまとめない。1 以上なら、その tick 数ごとにまとめて書き出す。上限 6000（Flashback のチャンク長）に丸める |
+| `ignore_block_action` | bool | `false` | `ClientboundBlockEventPacket` をすべて記録しない |
+| `block_update_interval_ticks` | int | `0` | 0 ならブロック変化をまとめない。1 以上なら、その tick 数ごとにまとめて書き出し、ピストンの Block Action を自動で捨てる。上限 6000（Flashback のチャンク長）に丸める |
 
 ### 挙動の詳細
 
@@ -75,19 +75,21 @@ ServerReplay と同じ方式（JSON をスネークケースのキーで手書�
   - 型が不正な値 → 警告ログを出して初期値
   - `block_update_interval_ticks` が負 → 0、6000 超 → 6000
   - `entity_whitelist` の未知の ID → 警告ログを出して無視
-- **Block Action の自動適用**：`block_update_interval_ticks >= 1` かつ `ignore_block_action == false` のとき、録画開始時に「Block Action を自動で無視します」と info ログを出す
+- **Block Action の自動適用**：`block_update_interval_ticks >= 1` かつ `ignore_block_action == false` のとき、録画開始時に「ピストンの Block Action を自動で無視します」と info ログを出す
 
-| `ignore_block_action` | `block_update_interval_ticks` | Block Action |
-|---|---|---|
-| false | 0 | 記録する |
-| true | 0 | 捨てる |
-| どちらでも | 1 以上 | 捨てる（自動適用） |
+| `ignore_block_action` | `block_update_interval_ticks` | ピストンの Block Action | それ以外の Block Action（チェストの開閉、音符ブロック、ベル等） |
+|---|---|---|---|
+| false | 0 | 記録する | 記録する |
+| false | 1 以上 | 捨てる（自動適用） | 記録する |
+| true | どちらでも | 捨てる | 捨てる |
+
+ピストンだけを自動で捨てる理由：ピストンの Block Action はクライアント側でもブロックを動かすため、まとめて書き出したブロックの状態と食い違う。それ以外の Block Action は見た目の演出だけで、ブロックの状態には影響しない。
 
 ---
 
 ## 3. フック箇所
 
-1.21.11 ブランチ（ServerReplay `1.21.11`、Arcade `1.21.11`）のソースで存在を確認済み。
+ServerReplay 3.3.1（`1.21.11` ブランチ）と、それが使う Arcade 0.8.1-beta.39 のソースで存在を確認済み。Arcade の最新 beta.48 でも、下記のメソッドは変わっていない。
 
 | 対象 | 注入位置 | 用途 |
 |---|---|---|
@@ -95,12 +97,13 @@ ServerReplay と同じ方式（JSON をスネークケースのキーで手書�
 | `ReplayRecorder.canRecordPacket(Packet)` | HEAD, cancellable | エンティティ選別、Block Action 破棄、ブロック変化の取り込み |
 | `ReplayRecorder.tick()` | HEAD | n tick ごとの書き出し |
 | `net.casual.arcade.replay.io.writer.flashback.FlashbackWriter.startNewReplayChunk()`（private） | HEAD | チャンクの区切り（スナップショット）直前の書き出し |
-| `ReplayRecorder.stop(...)` | HEAD | 録画終了時の書き出し |
+| `ReplayRecorder.stop(boolean)` | HEAD | 録画終了時の書き出し |
 | `me.senseiwells.replay.ServerReplay.reload()` | TAIL | 設定の再読み込み |
 
 ### 方針
 
-- Arcade / ServerReplay への mixin は `remap = false`、メソッドは名前だけで指定する（記述子は書かない）
+- Arcade / ServerReplay への mixin は `remap = false`、メソッドは原則として名前だけで指定する（記述子は書かない）
+  - 例外：`stop` は `@JvmOverloads` で `stop()` と `stop(boolean)` の 2 つがあるため、記述子付きで `stop(Z)` に絞る
 - `canRecordPacket` を選ぶ理由：`ReplayRecorder.record()` の中で
   1. `ReplayOptimizerUtils.shouldIgnorePacket()`
   2. バンドルパケットの分解（サブパケットごとに `record()` を再帰呼び出し）
@@ -110,6 +113,26 @@ ServerReplay と同じ方式（JSON をスネークケースのキーで手書�
   の順に処理されるため、**バンドル分解後・書き込み前**に 1 件ずつ判定できる。`ReplayChunkRecorder.canRecordPacket` のオーバーライドは `super` を呼ぶので、親クラスへの注入で効く
 - 録画ごとの状態は `@Unique` フィールドとして `ReplayRecorder` に持たせる
 - `ReplayChunkRecorder` 以外（プレイヤー録画）では、すべてのフックを素通りにする
+- フック内で例外が出たときは、ログを 1 回だけ出してパケットを素通しにする（録画を止めない）
+
+### 呼び出し元とスレッド（ソースで確認済み）
+
+| 経路 | 呼び出し元 | スレッド |
+|---|---|---|
+| ブロック変化・ライト更新 | `ChunkHolder.broadcast`（`ChunkHolder.broadcastChanges` から） | メイン |
+| Block Action | `PlayerList.broadcast`（`ServerLevel.runBlockEvents` から） | メイン |
+| エンティティ系 | `ChunkMap.TrackedEntity.sendToTrackingPlayers` / `addRecorder` / `removeRecorder` | メイン |
+| `ReplayRecorder.tick()` | `ServerTickEvent` | メイン |
+| `startNewReplayChunk()` | `FlashbackWriter.tick()`（`ReplayRecorder.tick()` の中）、`FlashbackWriter.resume()` | メイン |
+
+- パケットのエンコードは Writer のスレッドで非同期に行われるが、記録するパケットは生成時に状態をコピーするので、書き出しで作るパケットにも問題はない
+
+### ServerReplay / Arcade のバージョン違いへの対応
+
+- `fabric.mod.json` では `server-replay` を `>=3.3.1` の範囲で指定する（完全一致で固定しない）
+- mixin 設定は `"required": false`、`"defaultRequire": 0` にして、フック先が見つからなくても起動は止めない
+- `IMixinConfigPlugin` で上記 6 箇所のフックがすべて当たったかを確認する。1 つでも当たらなければ警告ログを出し、**すべての機能を無効化**する（素通し）
+  - 一部だけ当たった状態（例：取り込みはできるのに書き出しのフックがない）でブロック変化が失われるのを防ぐため、全部か無しかにする
 
 ---
 
@@ -120,15 +143,27 @@ ServerReplay と同じ方式（JSON をスネークケースのキーで手書�
 1. 書き出し中の自分のパケット（再入防止フラグが立っている）→ 通す
 2. `ignore_entities` が false → 通す
 3. パケットの種類がエンティティ系セットに含まれない → 通す
-4. `entity_whitelist` が空 → **記録しない**（種類の判定のみ。ID は見ない）
-5. ホワイトリストあり：
+4. 対象がチャンク録画のダミープレイヤー（`ReplayChunkRecorder.getDummyPlayer().getId()`）→ 通す
+5. `entity_whitelist` が空 → **記録しない**（種類の判定のみ。ID は見ない）
+6. ホワイトリストあり：
    - 出現（`ClientboundAddEntityPacket`）：種類がリストにあれば、残す ID セットに追加して記録。なければ記録しない
    - 消滅（`ClientboundRemoveEntitiesPacket`）：残す ID セットから外し、記録する
-   - その他：ID を取り出し、残す ID セットにあれば記録。複数 ID を持つパケット（乗り物・紐）は、どれか 1 つでも該当すれば記録
+   - その他：ID を取り出し、残す ID セットにあれば記録。複数 ID を持つパケット（乗り物・紐・拾得）は、どれか 1 つでも該当すれば記録
+
+#### ダミープレイヤーを常に通す理由
+
+チャンク録画のダミープレイヤー（`-ChunkRecorder-`）は、`ClientboundAddEntityPacket` ではなく Flashback の `CreatePlayer` アクションで作られる（`FlashbackWriter.writePlayer` が出現パケットを取り除く）。そのため残す ID セットに入らず、そのままでは透明化の効果（`ClientboundUpdateMobEffectPacket`）やエンティティデータが捨てられてしまう。
+
+#### 存在しないエンティティを参照するパケット
+
+「どれか 1 つでも該当すれば記録」だと、除外したエンティティの ID を含むパケット（例：除外したボートに乗るプレイヤーの `SetPassengers`、除外したアイテムを拾う `TakeItemEntity`）も記録される。vanilla クライアントは未知の ID を無視するので、壊れることはない。見た目への影響は次の程度で、許容する。
+
+- 紐の相手（`minecraft:leash_knot`）を除外すると、紐が表示されない
+- 乗り物を除外すると、乗っているエンティティは乗り物なしで表示される
 
 ### エンティティ系パケットのセット
 
-1.21.11 の mojmap 名は実装時に要確認。
+1.21.11 の mojmap 名は実装時に要確認（MC 本体の jar での確認がまだ。コンパイルで確かめる）。
 
 - `ClientboundAddEntityPacket`
 - `ClientboundRemoveEntitiesPacket`
@@ -151,27 +186,43 @@ ServerReplay と同じ方式（JSON をスネークケースのキーで手書�
 - `ClientboundRemoveMobEffectPacket`
 - `ClientboundProjectilePowerPacket`
 
+次のパケットはエンティティ ID を持つが、セットに入れない。
+
+| パケット | 理由 |
+|---|---|
+| `ClientboundMoveMinecartPacket` | Arcade の `FlashbackWriter.canRecordPacket` が先に捨てる |
+| `ClientboundSetCameraPacket` | Arcade の `ReplayOptimizerUtils` が先に捨てる |
+| `ClientboundSoundEntityPacket` | 音として扱う。ServerReplay の `ignore_sound_packets` で消す。残っていても、クライアントは未知の ID を無視する |
+| `ClientboundBlockDestructionPacket` | 掘削のひび割れ表示。常に記録する（10 章） |
+
+セットから漏れた種類があっても、除外したエンティティのパケットが記録されるだけで、壊れることはない。
+
 ### 実装メモ
 
 - ID のフィールドが private のもの（`ClientboundRotateHeadPacket`、`ClientboundEntityEventPacket` など）は `@Accessor` mixin で取り出す
 - 残す ID セットは fastutil の `IntOpenHashSet`（ロックなし）
   - 「隠す ID」ではなく「残す ID」を持つ：額縁・トロッコ等は数十〜数百件でほぼ増減しないため、小さくキャッシュに乗る
   - エンティティ ID はサーバー起動中は増え続ける連番で再利用されないため、消滅の取りこぼしがあっても誤判定にはならない
-- `record()` がメインスレッド以外から呼ばれた場合は判定せず通す
+- `record()` がメインスレッド以外から呼ばれた場合は判定せず通す（エンティティ系の経路はすべてメインスレッドなので、実際にはほぼ起きない）
 - 種類の判定は `getClass()` の完全一致（入れ子クラスは個別に登録）
 - 想定負荷：約 65 件/tick × 約 10〜20ns ≈ 約 1µs/tick
 
 ### 補足
 
-- スナップショット（5 分ごと）でのエンティティ出現も `record()` 経由のため、同じく除外される見込み。テストで確認する
-- 出現パケットが Writer に届かないため、Arcade の移動まとめ（`move_entities` アクション）も対象がいなくなり、自然に出なくなる
+- スナップショット（5 分ごと）でのエンティティ出現も `record()` 経由で `canRecordPacket` を通ることをソースで確認済み（`ReplayChunkRecorder.takeSnapshot` → `TrackedEntity.resendPackets` → `ClientboundBundlePacket` を `record()`）。そのため除外したエンティティは現れず、録画開始時からいるホワイトリスト対象も残す ID セットに入る
+- Arcade の移動まとめ（`move_entities` アクション）は、`canRecordPacket` を通過した `ClientboundMoveEntityPacket` を `FlashbackWriter.writePacket` がまとめたもの。そのため除外したエンティティの移動は、まとめに入らない
 
 ---
 
 ## 5. 機能 3：`ignore_block_action`
 
-- `canRecordPacket` で `ClientboundBlockEventPacket` なら記録しない
-- 有効条件：`ignore_block_action == true` または `block_update_interval_ticks >= 1`
+`canRecordPacket` で `ClientboundBlockEventPacket` を次のように扱う。
+
+| 条件 | 処理 |
+|---|---|
+| `ignore_block_action == true` | すべて記録しない |
+| `block_update_interval_ticks >= 1` | `getBlock()` が `PistonBaseBlock`（ピストン・粘着ピストン）のものだけ記録しない |
+| 上記以外 | 記録する |
 
 ---
 
@@ -187,9 +238,10 @@ ServerReplay と同じ方式（JSON をスネークケースのキーで手書�
 | `ClientboundSectionBlocksUpdatePacket` | `runUpdates` で全座標を「変化あり」として記録し、パケットは記録しない |
 | `ClientboundBlockEntityDataPacket` | 座標を「ブロックエンティティ変化あり」として記録し、パケットは記録しない |
 | `ClientboundLevelChunkWithLightPacket` | そのチャンク列の溜まっている分を捨てる（チャンクデータの方が新しい）。パケット自体は通す |
-| `ClientboundForgetLevelChunkPacket` | そのチャンク列の溜まっている分を捨てる。パケット自体は通す |
 
-メインスレッド以外から来たブロック変化は、取り込まずにそのまま通す。
+- メインスレッド以外から来たブロック変化は、取り込まずにそのまま通す（ブロック変化の経路はメインスレッドなので、実際にはほぼ起きない）
+- `ClientboundForgetLevelChunkPacket` は Arcade の `FlashbackWriter.canRecordPacket` が先に捨てるため、このフックには届かない。チャンクの解放時は、Arcade がその時点のチャンクデータ（`ClientboundLevelChunkWithLightPacket`）を記録するので、上の行の処理で足りる
+- `ClientboundLightUpdatePacket` はまとめずにそのまま通す。そのため、明るさだけがブロック変化より最大 n tick 早く変わる（20 tick なら最大 1 秒）。初版ではこれを許容し、見た目と容量を計測してから見直す
 
 ### データ構造（resize とアロケーションを避ける）
 
@@ -204,8 +256,10 @@ ServerReplay と同じ方式（JSON をスネークケースのキーで手書�
 **タイミング**
 
 - `ReplayRecorder.tick()` の先頭で、録画内の tick カウンタが `interval` の倍数のとき
+  - tick カウンタは録画ごとに持ち、一時停止中は進めない
 - `FlashbackWriter.startNewReplayChunk()` の先頭（チャンクの区切りの直前）
-- `ReplayRecorder.stop()` の先頭（録画終了時）
+- `ReplayRecorder.stop(boolean)` の先頭（録画終了時）
+- 一時停止中（`ReplayRecorder.getPaused()`）は書き出さない（Writer に捨てられるため）
 
 **手順**（vanilla の `ChunkHolder.broadcastChanges` と同じ考え方）
 
@@ -215,14 +269,15 @@ ServerReplay と同じ方式（JSON をスネークケースのキーで手書�
    - 変化 1 箇所 → `new ClientboundBlockUpdatePacket(level, pos)`
    - 変化 2 箇所以上 → `new ClientboundSectionBlocksUpdatePacket(sectionPos, shorts, section)`（状態はセクションから読まれる）
    - `recorder.record(packet)` で通常の経路に流す
-3. ブロックの後に、ブロックエンティティが変化した各座標について `blockEntity.getUpdatePacket()` を `record()` する
+3. ブロックの後に、ブロックエンティティが変化した各座標について `blockEntity.getUpdatePacket()` を `record()` する。チャンクが未読み込み、ブロックエンティティがもう無い、または `getUpdatePacket()` が null のときはスキップする
 4. 集合を `clear()` してプールへ戻し、フラグを下ろす
 
 ### 順序について
 
 - `tick()` の先頭で書き出すので、そのtickの `next_tick` より前に入る
-- `startNewReplayChunk()` の先頭で書き出すので、`endChunk` より前に入る。区切りの後のスナップショットはワールドから地形を送り直すので整合する
-- 一時停止中は Arcade の `FlashbackWriter.canRecordPacket` が先に弾くため溜まらない。再開時は `startNewReplayChunk()` 経由で書き出される
+- `startNewReplayChunk()` の先頭で書き出すので、`endChunk` より前に入る（`endChunk` は Writer のスレッドに後から積まれる）
+- 区切りの後のスナップショットでは、読み込み済みのチャンクはワールドから作り直した `ClientboundLevelChunkWithLightPacket` を `record()` する。未読み込みのチャンクは、解放時に記録したチャンクデータのキャッシュを参照する。どちらも最新の状態なので整合する
+- 一時停止中は Arcade の `FlashbackWriter.canRecordPacket` が先に弾くため溜まらない。一時停止の直前に溜まっていた分は書き出さずに残るが、再開時の `startNewReplayChunk()` 先頭で書き出され、続くスナップショットでワールドから地形が送り直されるので、変化は失われない
 
 ### 将来の検討（初版では入れない）
 
@@ -248,13 +303,14 @@ optimize-server-replay/
 │  ├─ entity/EntityFilter.java          録画ごとの状態（残す ID セット）
 │  ├─ block/BlockUpdateBuffer.java      録画ごとの状態（変化セクション・プール・書き出し）
 │  └─ mixin/
+│     ├─ OptimizeServerReplayMixinPlugin.java  フックがすべて当たったかの確認
 │     ├─ ReplayRecorderMixin.java       <init> / canRecordPacket / tick / stop
 │     ├─ FlashbackWriterMixin.java      startNewReplayChunk
 │     ├─ ServerReplayMixin.java         reload
 │     └─ accessor/*Accessor.java        private なエンティティ ID の取り出し
 └─ src/main/resources/
    ├─ fabric.mod.json                   environment: server / depends: minecraft 1.21.11, server-replay >=3.3.1
-   └─ optimize-server-replay.mixins.json
+   └─ optimize-server-replay.mixins.json  required: false / defaultRequire: 0 / plugin を指定
 ```
 
 雛形（fabric-example-mod の 1.21.11 ブランチ）から作成済み。現時点であるのは `OptimizeServerReplay.java`、`fabric.mod.json`、`optimize-server-replay.mixins.json` と、テンプレートの見本の `mixin/ExampleMixin.java`。`ExampleMixin.java` は最初の mixin を追加するときに削除する。
@@ -269,12 +325,11 @@ optimize-server-replay/
 
 ## 8. 実装手順
 
-1. **下調べ**：実際に使う jar を `javap` で確認し、以下が想定どおりか確かめる
-   - `ReplayRecorder.canRecordPacket` / `tick` / `stop` の名前と記述子
-   - `FlashbackWriter.startNewReplayChunk` の存在
-   - `ServerReplay.reload` の存在（Kotlin `object` のインスタンスメソッド）
-   - 各パケットの mojmap 名・ID フィールド名
-2. **設定と再読み込み**：ファイル生成・検証・`/replay reload` 連動
+1. **下調べ**：ソースでの確認は済んでいる（3 章・11 章）。残りは、実際に使う jar を `javap` で確認すること
+   - `ReplayRecorder.canRecordPacket` / `tick` / `stop(Z)` の記述子
+   - Kotlin のコンパイル結果として、`FlashbackWriter.startNewReplayChunk` が private のまま残っているか
+   - 各パケットの mojmap 名・ID フィールド名（MC 1.21.11 の jar）
+2. **設定と再読み込み**：ファイル生成・検証・`/replay reload` 連動、mixin プラグインによるフックの確認
 3. **エンティティ選別**：全消し → ホワイトリストの順
 4. **Block Action**
 5. **ブロック変化のまとめ**：取り込み → 書き出し → チャンク区切り・停止・一時停止への対応
@@ -292,7 +347,10 @@ optimize-server-replay/
 ### 正しさ
 
 - ホワイトリストのエンティティだけが出ること（空なら一切出ないこと）
-- Block Action が記録されないこと（まとめ有効時は `ignore_block_action: false` でも）
+- 録画開始時からいるホワイトリスト対象（額縁など）が、出現するだけでなく動きや表示の変化も記録されること
+- `ignore_entities` 有効時も、チャンク録画のダミープレイヤーが透明のままであること
+- `ignore_block_action: true` で Block Action が記録されないこと
+- まとめ有効時（`ignore_block_action: false`）は、ピストンの Block Action だけが記録されず、チェストの開閉や音符ブロックは記録されること
 - 録画終了時のブロックが実際のワールドと一致すること
 - チャンクの区切りをまたいだシーク後も表示が壊れないこと
 - チャンクの区切り後のスナップショットに、除外したエンティティが現れないこと
@@ -304,6 +362,7 @@ optimize-server-replay/
 - 範囲端のチャンクの読み込み・解放
 - `block_update_interval_ticks` が 1 / 20 / 6000 のとき
 - `/replay reload` 後、録画中の設定は変わらず、次の録画から反映されること
+- フック先が見つからない ServerReplay / Arcade の組み合わせで、警告ログが出て、すべての機能が無効になり、起動と録画は止まらないこと
 
 ### 計測
 
@@ -340,3 +399,16 @@ optimize-server-replay/
 - `optimize_entity_packets` は TNT の `ClientboundEntityPositionSyncPacket` を止めておらず、TNT の容量の大半がこれ
 - ブロック変化のまとめの試算（3 チャンク平均）：1 tick −9%、5 tick −54%、20 tick −81%、100 tick −93%、600 tick −96%
 - 地形キャッシュの 9 割以上は 5 分ごとのスナップショット由来（zip では約 15% に圧縮される）
+
+### ServerReplay / Arcade のソースで確認したこと
+
+ServerReplay 3.3.1（`1.21.11` ブランチ）と Arcade 0.8.1-beta.39（ServerReplay 3.3.1 が依存する版）を読んで確認した。
+
+- Flashback のチャンク長は `FlashbackIO.CHUNK_LENGTH = 5 * 60 * 20`（6000 tick）の定数で、設定では変えられない
+- `ReplayRecorder.record()` は `writer.canRecordPacket(p) && this.canRecordPacket(p)` の順に判定する。Writer が先に捨てるパケット（一時停止中のすべて、`ClientboundForgetLevelChunkPacket`、`ClientboundMoveMinecartPacket` など）は、こちらのフックに届かない
+- `ReplayChunkRecorder.canRecordPacket` は `ClientboundSetChunkCacheRadiusPacket` 以外で `super` を呼ぶので、親クラスへの注入で全パケットを判定できる
+- 一時停止・再開：`pause()` 中は `FlashbackWriter.tick()` が `next_tick` もチャンクの区切りも進めない。`resume()` は `startNewReplayChunk()` を呼んで、スナップショットを取り直す
+- スナップショット（`ReplayChunkRecorder.takeSnapshot`）は、読み込み済みのチャンクをワールドから作り直して `record()` し、未読み込みのチャンクは解放時に記録したキャッシュを参照する。エンティティは `TrackedEntity.resendPackets` で、出現パケットを含むバンドルとして `record()` される
+- ServerReplay の `reload()` は設定を読み直すだけで、実行中の録画には触れない。`restart()` で作られる次の録画は、その時点の設定で作られる
+- Arcade の最新 beta.48 でも、3 章でフックするメソッドは変わっていない
+- vanilla クライアントは、未知のエンティティ ID を参照するパケット（乗り物、紐、拾得など）を無視する
