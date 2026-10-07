@@ -2,17 +2,17 @@
 
 [日本語](README.ja.md)
 
-A Fabric mod that makes the chunk recordings of [Server Replay](https://github.com/senseiwells/ServerReplay) smaller, by leaving out the packets that a timelapse does not need.
+An addon for [Server Replay](https://github.com/senseiwells/ServerReplay) that reduces the load in various situations, by leaving the packets you choose out of its chunk recordings.
 
-## What it does
+## Packets that can be left out
 
-- Leaves the packets of entities out of a recording (you choose which entity types to keep)
-- Leaves block actions out, such as a piston extending or a chest opening
-- Records block changes together every few ticks
+- Packets about entities (you can choose which entities to keep)
+- Block actions, such as a piston extending or a chest opening
+- Block change packets, by recording them together once every given number of ticks (the interval is adjustable)
 
 Every feature is off by default. Turn on the ones you want in the [config](#configuration).
 
-The mod only applies to **chunk recordings in the Flashback format**. It never changes chunk recordings in the ReplayMod format, or player recordings (`/replay start players`).
+The mod only applies to **chunk recordings in the Flashback format**. It does not work for chunk recordings in the ReplayMod format, or for player recordings (`/replay start players`).
 
 ## Requirements
 
@@ -89,7 +89,7 @@ It means that the installed Server Replay is a version this mod does not support
 
 ## Building from source
 
-You need JDK 25 to run the build (the mod itself is compiled for Java 21).
+You need JDK 25 to run the build.
 
 ```sh
 ./gradlew build
