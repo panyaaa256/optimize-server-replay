@@ -95,7 +95,7 @@ Optimize Server Replay is disabled: the installed Server Replay / Arcade version
 
 Windows では `./gradlew build` の代わりに `gradlew.bat build` を使ってください。
 
-mod は `build/libs/optimize-server-replay-<バージョン>.jar` にビルドされます（`-sources.jar` で終わるファイルは mod ではありません）。
+mod は `build/libs/optimize-server-replay-<バージョン>.jar` にビルドされます。
 
 ## ライセンス
 

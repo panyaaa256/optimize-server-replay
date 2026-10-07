@@ -95,7 +95,7 @@ You need JDK 25 to run the build (the mod itself is compiled for Java 21).
 
 On Windows, use `gradlew.bat build` instead of `./gradlew build`.
 
-The mod is built to `build/libs/optimize-server-replay-<version>.jar` (the file ending in `-sources.jar` is not the mod).
+The mod is built to `build/libs/optimize-server-replay-<version>.jar`.
 
 ## License
 
