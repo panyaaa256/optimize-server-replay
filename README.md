@@ -53,6 +53,8 @@ The config file is `config/optimize-server-replay/config.json`. If it does not e
 - `/replay reload` reads the config again. The new settings are used by the recordings that start after that. A recording that is already running keeps the settings it started with.
 - When a value has the wrong type, a key is missing, or the file is not valid JSON, the mod logs a warning and uses the default. It never rewrites your config file.
 
+For the packets that each setting affects, see [docs/packets.md](docs/packets.md).
+
 ### Recording block changes together
 
 With `block_update_interval_ticks` at 1 or more, a block that changed several times in that interval is recorded once, with its last state. A larger value makes the file smaller and the movement of blocks coarser.
