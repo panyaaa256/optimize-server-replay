@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Checks which hooks were applied. Mixin names the handler of an injection like
+ * Mixin names the handler of an injection like
  * {@code handler$zpb000$optimize-server-replay$osr$onTick} and calls it from the target method,
  * so a call to such a method in the applied class means the hook is in place.
  *

@@ -26,9 +26,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
- * Collects the block updates of a recording, so that they can be recorded together every few ticks.
- *
- * <p>Only the positions are kept. The state of a block is read from the level when the updates
+ * Only the positions are kept. The state of a block is read from the level when the updates
  * are flushed, so a position that changed many times is recorded once, with its latest state.
  *
  * <p>Only used on the server thread.
@@ -38,22 +36,15 @@ public final class BlockUpdateBuffer {
 	private static final int INITIAL_BLOCK_ENTITIES = 64;
 
 	// These are created by the first capture, as most recordings never batch block updates.
-	// Section position -> the positions in that section that changed (see SectionPos.sectionRelativePos).
 	private Long2ObjectOpenHashMap<ShortOpenHashSet> sections;
-	// Block positions (BlockPos.asLong) whose block entity data changed.
 	private LongOpenHashSet blockEntities;
 	// Emptied sets, so that they keep their arrays for the next flush.
 	private ArrayDeque<ShortOpenHashSet> pool;
-	// The positions of one section without the ones that are moving pistons. Reused by every section.
+	// Kept in a field, so that flushing a section does not allocate a set.
 	private ShortOpenHashSet kept;
 	// Kept in a field, so that capturing a section update does not allocate a lambda.
 	private BiConsumer<BlockPos, BlockState> addBlock;
 
-	/**
-	 * Takes note of a packet that changes blocks.
-	 *
-	 * @return whether the packet was taken, in which case it must not be recorded
-	 */
 	public boolean capture(Packet<?> packet) {
 		if (packet instanceof ClientboundBlockUpdatePacket update) {
 			this.ensureCreated();
@@ -77,12 +68,6 @@ public final class BlockUpdateBuffer {
 		return false;
 	}
 
-	/**
-	 * Hands the current state of every collected position to {@code recorder}, and forgets the positions.
-	 *
-	 * @param level the level that the recording is in
-	 * @param recorder records a packet
-	 */
 	public void flush(ServerLevel level, Consumer<Packet<?>> recorder) {
 		if (this.sections == null || (this.sections.isEmpty() && this.blockEntities.isEmpty())) {
 			return;

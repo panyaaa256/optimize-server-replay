@@ -8,13 +8,6 @@ import net.casual.arcade.replay.recorder.chunk.ReplayChunkRecorder;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundBlockEventPacket;
 
-/**
- * The filters of one Flashback chunk recording.
- *
- * <p>Holds the config the recording started with and the state the filters keep for it.
- * {@code ReplayRecorderMixin} creates one for each recording that the filters apply to,
- * and calls into it from the recorder's hooks.
- */
 public final class RecordingFilter {
 	private final ReplayChunkRecorder recorder;
 	private final FilterConfig config;
@@ -44,9 +37,6 @@ public final class RecordingFilter {
 		}
 	}
 
-	/**
-	 * Decides whether the recorder may record a packet.
-	 */
 	public boolean shouldRecord(Packet<?> packet) {
 		// The filters keep their state without locks, and the packets they look at are all
 		// sent from the server thread.
@@ -68,9 +58,6 @@ public final class RecordingFilter {
 		}
 	}
 
-	/**
-	 * Runs at the start of every tick of the recorder.
-	 */
 	public void tick() {
 		if (!this.batchesBlockUpdates() || this.recorder.getPaused()) {
 			return;
@@ -82,9 +69,6 @@ public final class RecordingFilter {
 		}
 	}
 
-	/**
-	 * Records the block updates that were batched since the last flush.
-	 */
 	public void flushBlockUpdates() {
 		// While paused the writer discards every packet, so the updates would be lost.
 		if (!this.batchesBlockUpdates() || this.flushing || this.recorder.getPaused()) {

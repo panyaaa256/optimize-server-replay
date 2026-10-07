@@ -25,7 +25,6 @@ import java.util.concurrent.CompletableFuture;
 
 @Mixin(value = ReplayRecorder.class, remap = false)
 public abstract class ReplayRecorderMixin implements RecordingFilterHolder {
-	// Null for the recordings that the filters do not apply to.
 	@Unique
 	@Nullable
 	private RecordingFilter osr$filter;
@@ -39,7 +38,6 @@ public abstract class ReplayRecorderMixin implements RecordingFilterHolder {
 		Path path,
 		CallbackInfo ci
 	) {
-		// Only Flashback chunk recordings are filtered, never player or ReplayMod recordings.
 		if (!((Object) this instanceof ReplayChunkRecorder recorder) || format != ReplayFormat.Flashback) {
 			return;
 		}

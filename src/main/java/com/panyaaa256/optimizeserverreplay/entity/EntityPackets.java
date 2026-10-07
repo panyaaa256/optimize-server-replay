@@ -27,9 +27,7 @@ import net.minecraft.network.protocol.game.ClientboundUpdateAttributesPacket;
 import net.minecraft.network.protocol.game.ClientboundUpdateMobEffectPacket;
 
 /**
- * The packets that belong to one entity, and how to read the entity id out of them.
- *
- * <p>The kinds are small ints so that looking one up does not allocate. Packets are matched by
+ * The kinds are small ints so that looking one up does not allocate. Packets are matched by
  * their exact class, so the nested classes of {@link ClientboundMoveEntityPacket} are listed
  * on their own.
  */
@@ -40,7 +38,6 @@ final class EntityPackets {
 	static final int PASSENGERS = 2;
 	static final int LINK = 3;
 	static final int TAKE_ITEM = 4;
-	/** Packets with exactly one entity id, which {@link #singleId} reads. */
 	static final int SINGLE = 5;
 
 	private static final Reference2IntOpenHashMap<Class<?>> KINDS = new Reference2IntOpenHashMap<>();
@@ -80,16 +77,10 @@ final class EntityPackets {
 	private EntityPackets() {
 	}
 
-	/**
-	 * Returns one of the kind constants, or {@link #NOT_ENTITY} for a packet that is not an entity packet.
-	 */
 	static int kindOf(Packet<?> packet) {
 		return KINDS.getInt(packet.getClass());
 	}
 
-	/**
-	 * Reads the entity id of a packet whose kind is {@link #SINGLE}.
-	 */
 	static int singleId(Packet<?> packet) {
 		return switch (packet) {
 			case ClientboundMoveEntityPacket move -> ((ClientboundMoveEntityPacketAccessor) move).osr$getEntityId();

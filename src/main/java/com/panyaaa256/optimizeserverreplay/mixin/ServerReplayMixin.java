@@ -8,7 +8,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(targets = "me.senseiwells.replay.ServerReplay", remap = false)
 public abstract class ServerReplayMixin {
-	// Runs on /replay reload.
 	@Inject(method = "reload", at = @At("TAIL"))
 	private void osr$onReload(CallbackInfo ci) {
 		FilterConfig.reload();

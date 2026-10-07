@@ -5,7 +5,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
 /**
- * Gives access to the entity id of the movement packets, which only have a getter that needs a level.
+ * The packets only have a getter that needs a level, so the entity id is read from the field.
  */
 @Mixin(ClientboundMoveEntityPacket.class)
 public interface ClientboundMoveEntityPacketAccessor {

@@ -9,16 +9,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Tells whether every hook into Server Replay and Arcade was applied.
- *
- * <p>This is loaded very early, so it must not refer to any Minecraft class. It has its own logger
+ * This is loaded very early, so it must not refer to any Minecraft class. It has its own logger
  * for the same reason, rather than using the one of {@link OptimizeServerReplay}.
  */
 public final class HookStatus {
-	/**
-	 * The names of all the hooks, as {@code Class#method}. The mixin plugin reports each one
-	 * once it has found the hook in the applied class.
-	 */
 	public static final Set<String> ALL_HOOKS = Set.of(
 		"ReplayRecorder#<init>",
 		"ReplayRecorder#canRecordPacket",
@@ -37,21 +31,16 @@ public final class HookStatus {
 	private HookStatus() {
 	}
 
-	/**
-	 * Records that a hook was found in its applied target class.
-	 *
-	 * @param hook one of {@link #ALL_HOOKS}
-	 */
 	public static void markApplied(String hook) {
 		APPLIED.add(hook);
 	}
 
 	/**
-	 * Whether all the hooks are in place. The filters stay disabled when one is missing,
-	 * because a recording would lose block updates if, say, they were batched but never flushed.
+	 * The filters stay disabled when even one hook is missing, because a recording would lose
+	 * block updates if, say, they were batched but never flushed.
 	 *
-	 * <p>Called at the end of the constructor of a Flashback chunk recorder, by which time
-	 * all the classes we mix into have been loaded.
+	 * <p>Called at the end of the constructor of a Flashback chunk recorder, because only by then
+	 * have all the classes we mix into been loaded.
 	 */
 	public static boolean allHooksApplied() {
 		if (APPLIED.containsAll(ALL_HOOKS)) {

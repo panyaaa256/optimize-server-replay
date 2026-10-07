@@ -21,14 +21,6 @@ import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
 
-/**
- * The settings of the packet filters, as read from {@code config/optimize-server-replay/config.json}.
- *
- * @param ignoreEntities whether packets about entities are left out of chunk recordings
- * @param entityWhitelist the entity types that are still recorded while {@code ignoreEntities} is on
- * @param ignoreBlockAction whether all block actions are left out
- * @param blockUpdateIntervalTicks how many ticks of block updates are batched together, 0 to record them as they come
- */
 public record FilterConfig(
 	boolean ignoreEntities,
 	Set<EntityType<?>> entityWhitelist,
@@ -53,18 +45,10 @@ public record FilterConfig(
 
 	private static volatile FilterConfig current = DEFAULT;
 
-	/**
-	 * The config as of the last {@link #reload()}. A recording keeps the one it started with.
-	 */
 	public static FilterConfig current() {
 		return current;
 	}
 
-	/**
-	 * Reads the config file again. Runs when the mod is initialized and on {@code /replay reload}.
-	 * Never throws: whatever cannot be read falls back to {@link #DEFAULT}, with a warning.
-	 * An existing file is never rewritten; a missing one is created from {@link #DEFAULT}.
-	 */
 	public static void reload() {
 		try {
 			Path file = FabricLoader.getInstance().getConfigDir()
@@ -145,7 +129,7 @@ public record FilterConfig(
 		}
 		if (value.isJsonPrimitive() && value.getAsJsonPrimitive().isNumber()) {
 			BigDecimal number = value.getAsBigDecimal();
-			// Reject 1.5, but accept 10.0 and 1e2 as whole numbers.
+			// The zeros are stripped first, so that 10.0 and 1e2 count as whole numbers.
 			if (number.stripTrailingZeros().scale() <= 0) {
 				if (number.signum() < 0) {
 					OptimizeServerReplay.LOGGER.warn("\"{}\" must not be negative, using 0", key);
