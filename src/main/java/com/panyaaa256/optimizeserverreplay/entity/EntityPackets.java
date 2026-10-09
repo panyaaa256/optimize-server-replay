@@ -86,10 +86,7 @@ final class EntityPackets {
 			case ClientboundMoveEntityPacket move -> ((ClientboundMoveEntityPacketAccessor) move).osr$getEntityId();
 			case ClientboundEntityPositionSyncPacket sync -> sync.id();
 			case ClientboundTeleportEntityPacket teleport -> teleport.id();
-			//? if >=26.1 {
-			/*case ClientboundSetEntityMotionPacket motion -> motion.id();
-			*///?} else
-			case ClientboundSetEntityMotionPacket motion -> motion.getId();
+			case ClientboundSetEntityMotionPacket motion -> motion.id();
 			case ClientboundSetEntityDataPacket data -> data.id();
 			case ClientboundRotateHeadPacket head -> ((ClientboundRotateHeadPacketAccessor) head).osr$getEntityId();
 			case ClientboundSetEquipmentPacket equipment -> equipment.getEntity();

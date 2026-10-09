@@ -18,7 +18,7 @@ stonecutter {
 	create(rootProject) {
 		// One node per minor version: each jar covers the patch releases of its minor version.
 		versions("1.21.11", "26.1", "26.2", "26.3")
-		vcsVersion = "1.21.11"
+		vcsVersion = "26.3"
 	}
 }
 

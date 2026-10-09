@@ -49,10 +49,7 @@ public final class EntityFilter {
 				return true;
 			}
 			case EntityPackets.REMOVE -> {
-				//? if >=26.3 {
-				/*IntList ids = ((ClientboundRemoveEntitiesPacket) packet).entityIds();
-				*///?} else
-				IntList ids = ((ClientboundRemoveEntitiesPacket) packet).getEntityIds();
+				IntList ids = ((ClientboundRemoveEntitiesPacket) packet).entityIds();
 				boolean record = false;
 				for (int i = 0; i < ids.size(); i++) {
 					int id = ids.getInt(i);

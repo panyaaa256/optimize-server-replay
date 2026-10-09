@@ -106,7 +106,7 @@ Windows では `./gradlew build` の代わりに `gradlew.bat build` を使っ�
 
 mod は対応する Minecraft バージョンごとに、`versions/<Minecraft バージョン>/build/libs/optimize-server-replay-<バージョン>+<Minecraft バージョン>.jar` にビルドされます。
 
-各バージョンは [Stonecutter](https://stonecutter.kikugie.dev/) で 1 つのソースを共有しています。アクティブなバージョン（リポジトリ上では 1.21.11）以外のコードは `//?` コメントの中にあります。他のバージョンのコードを編集するときは、Gradle タスク `"Set active project to <バージョン>"` でアクティブなバージョンを切り替え、コミット前に 1.21.11 に戻してください。
+各バージョンは [Stonecutter](https://stonecutter.kikugie.dev/) で 1 つのソースを共有しています。アクティブなバージョン（リポジトリ上では 26.3）以外のコードは `//?` コメントの中にあります。他のバージョンのコードを編集するときは、Gradle タスク `"Set active project to <バージョン>"` でアクティブなバージョンを切り替え、コミット前に 26.3 に戻してください。
 
 ## ライセンス
 

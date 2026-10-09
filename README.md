@@ -106,7 +106,7 @@ On Windows, use `gradlew.bat build` instead of `./gradlew build`.
 
 The mod is built for every supported Minecraft version, to `versions/<minecraft version>/build/libs/optimize-server-replay-<version>+<minecraft version>.jar`.
 
-The versions share one source tree through [Stonecutter](https://stonecutter.kikugie.dev/). The code for other versions than the active one (1.21.11 in the repository) is kept in `//?` comments. To edit the code of another version, switch the active version with the `"Set active project to <version>"` Gradle task, and switch back to 1.21.11 before committing.
+The versions share one source tree through [Stonecutter](https://stonecutter.kikugie.dev/). The code for other versions than the active one (26.3 in the repository) is kept in `//?` comments. To edit the code of another version, switch the active version with the `"Set active project to <version>"` Gradle task, and switch back to 26.3 before committing.
 
 ## License
 
