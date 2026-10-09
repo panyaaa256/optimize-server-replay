@@ -63,6 +63,9 @@ public final class BlockUpdateBuffer {
 		}
 		if (packet instanceof ClientboundLevelChunkWithLightPacket chunk) {
 			// The chunk data is newer than anything collected for this chunk.
+			//? if >=26.3 {
+			/*this.discardChunk(chunk.x(), chunk.z());
+			*///?} else
 			this.discardChunk(chunk.getX(), chunk.getZ());
 		}
 		return false;
