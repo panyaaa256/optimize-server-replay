@@ -10,6 +10,8 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EntityType;
+//? if >=26.2
+/*import net.minecraft.world.entity.EntityTypes;*/
 
 import java.io.IOException;
 import java.io.Reader;
@@ -32,6 +34,16 @@ public record FilterConfig(
 
 	public static final FilterConfig DEFAULT = new FilterConfig(
 		false,
+		// 26.2 moved the entity types from EntityType to EntityTypes.
+		//? if >=26.2 {
+		/*Set.of(
+			EntityTypes.PLAYER,
+			EntityTypes.MINECART,
+			EntityTypes.HOPPER_MINECART,
+			EntityTypes.ITEM_FRAME,
+			EntityTypes.GLOW_ITEM_FRAME
+		),
+		*///?} else {
 		Set.of(
 			EntityType.PLAYER,
 			EntityType.MINECART,
@@ -39,6 +51,7 @@ public record FilterConfig(
 			EntityType.ITEM_FRAME,
 			EntityType.GLOW_ITEM_FRAME
 		),
+		//?}
 		false,
 		0
 	);

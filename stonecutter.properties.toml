@@ -1,0 +1,27 @@
+mod.id = "optimize-server-replay"
+mod.version = "1.0.0"
+
+deps.fabric_loader = "0.19.5"
+loomx.loom_version = "1.18-SNAPSHOT"
+
+# deps.arcade is the Arcade version bundled in the Server Replay release of mod.server_replay.
+
+["1.21.11"]
+mod.mc_compat = "~1.21.11"
+mod.server_replay = ">=3.3.1"
+deps.arcade = "0.8.1-beta.37+1.21.11"
+
+["26.1"]
+mod.mc_compat = "~26.1"
+mod.server_replay = ">=3.4.3"
+deps.arcade = "0.9.0-beta.36+26.1.1"
+
+["26.2"]
+mod.mc_compat = "~26.2"
+mod.server_replay = ">=3.5.2"
+deps.arcade = "0.13.0-beta.6+26.2"
+
+["26.3"]
+mod.mc_compat = "~26.3"
+mod.server_replay = ">=3.6.0-beta.3"
+deps.arcade = "0.14.0-beta.7+26.3"
