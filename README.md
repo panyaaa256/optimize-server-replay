@@ -16,11 +16,18 @@ The mod only applies to **chunk recordings in the Flashback format**. It does no
 
 ## Requirements
 
-- Minecraft 1.21.11
+- Minecraft 1.21.11, 26.1, 26.2 or 26.3, with the jar of the mod built for that version
 - [Fabric Loader](https://fabricmc.net/use/) 0.19.5 or newer
-- Java 21 or newer
-- [Server Replay](https://modrinth.com/mod/server-replay) 3.3.1 or newer, for Minecraft 1.21.11
+- Java 21 or newer (Java 25 or newer for 26.1 and later)
+- [Server Replay](https://modrinth.com/mod/server-replay) for the same Minecraft version, at least the version below
 - [Fabric API](https://modrinth.com/mod/fabric-api) and [Fabric Language Kotlin](https://modrinth.com/mod/fabric-language-kotlin), which Server Replay needs
+
+| Minecraft | Server Replay |
+|---|---|
+| 1.21.11 | 3.3.1 |
+| 26.1 | 3.4.3 |
+| 26.2 | 3.5.2 |
+| 26.3 | 3.6.0-beta.3 |
 
 Optimize Server Replay is meant to be installed on the server, together with Server Replay. Clients do not need it.
 
@@ -97,7 +104,9 @@ You need JDK 25 to run the build.
 
 On Windows, use `gradlew.bat build` instead of `./gradlew build`.
 
-The mod is built to `build/libs/optimize-server-replay-<version>.jar`.
+The mod is built for every supported Minecraft version, to `versions/<minecraft version>/build/libs/optimize-server-replay-<version>+<minecraft version>.jar`.
+
+The versions share one source tree through [Stonecutter](https://stonecutter.kikugie.dev/). The code for other versions than the active one (1.21.11 in the repository) is kept in `//?` comments. To edit the code of another version, switch the active version with the `"Set active project to <version>"` Gradle task, and switch back to 1.21.11 before committing.
 
 ## License
 

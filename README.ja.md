@@ -16,11 +16,18 @@
 
 ## 前提
 
-- Minecraft 1.21.11
+- Minecraft 1.21.11、26.1、26.2、26.3 のいずれかと、そのバージョン用にビルドした本 mod の jar
 - [Fabric Loader](https://fabricmc.net/use/) 0.19.5 以降
-- Java 21 以降
-- Minecraft 1.21.11 用の [Server Replay](https://modrinth.com/mod/server-replay) 3.3.1 以降
+- Java 21 以降（26.1 以降は Java 25 以降）
+- 同じ Minecraft バージョン用の [Server Replay](https://modrinth.com/mod/server-replay)（下表のバージョン以降）
 - Server Replay が必要とする [Fabric API](https://modrinth.com/mod/fabric-api) と [Fabric Language Kotlin](https://modrinth.com/mod/fabric-language-kotlin)
+
+| Minecraft | Server Replay |
+|---|---|
+| 1.21.11 | 3.3.1 |
+| 26.1 | 3.4.3 |
+| 26.2 | 3.5.2 |
+| 26.3 | 3.6.0-beta.3 |
 
 Optimize Server Replay は、Server Replay と共にサーバーに導入して使う mod です。クライアント側に入れる必要はありません。
 
@@ -97,7 +104,9 @@ Optimize Server Replay is disabled: the installed Server Replay / Arcade version
 
 Windows では `./gradlew build` の代わりに `gradlew.bat build` を使ってください。
 
-mod は `build/libs/optimize-server-replay-<バージョン>.jar` にビルドされます。
+mod は対応する Minecraft バージョンごとに、`versions/<Minecraft バージョン>/build/libs/optimize-server-replay-<バージョン>+<Minecraft バージョン>.jar` にビルドされます。
+
+各バージョンは [Stonecutter](https://stonecutter.kikugie.dev/) で 1 つのソースを共有しています。アクティブなバージョン（リポジトリ上では 1.21.11）以外のコードは `//?` コメントの中にあります。他のバージョンのコードを編集するときは、Gradle タスク `"Set active project to <バージョン>"` でアクティブなバージョンを切り替え、コミット前に 1.21.11 に戻してください。
 
 ## ライセンス
 
