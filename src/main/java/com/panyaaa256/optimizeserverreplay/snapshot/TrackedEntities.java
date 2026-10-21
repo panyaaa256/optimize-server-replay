@@ -10,18 +10,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The entities that a level tracks, by the chunk they are in.
+ * The entities that a level tracks ({@code ChunkMap.TrackedEntity}), by the chunk they are in.
  *
- * <p>For every chunk of a snapshot, Arcade goes through all the entities that the level tracks
- * to find the ones in that chunk, which takes chunks times entities steps. Sorting them into
- * their chunks once makes it one pass. The entities of a chunk keep the order that Arcade goes
- * through them in, so the packets are recorded in the same order.
+ * <p>For every chunk it sends, Arcade goes through all the entities that the level tracks to find
+ * the ones in that chunk, which takes chunks times entities steps. Sorting them into their chunks
+ * once makes it one pass. The entities of a chunk keep the order that Arcade goes through them
+ * in, so the packets are recorded in the same order.
  */
 public final class TrackedEntities {
 	// Only changed and read on the server thread.
 	private static int changes = 0;
 
-	private final Long2ObjectOpenHashMap<List<Entity>> byChunk = new Long2ObjectOpenHashMap<>();
+	private final Long2ObjectOpenHashMap<List<Object>> byChunk = new Long2ObjectOpenHashMap<>();
 	private final int changesWhenBuilt;
 	private final int tick;
 
@@ -30,7 +30,7 @@ public final class TrackedEntities {
 		this.tick = level.getServer().getTickCount();
 		for (Object tracked : ((ChunkMapAccessor) level.getChunkSource().chunkMap).osr$entityMap().values()) {
 			Entity entity = ((TrackedEntityAccessor) tracked).osr$entity();
-			this.byChunk.computeIfAbsent(entity.chunkPosition().toLong(), chunk -> new ArrayList<>()).add(entity);
+			this.byChunk.computeIfAbsent(entity.chunkPosition().toLong(), chunk -> new ArrayList<>()).add(tracked);
 		}
 	}
 
@@ -53,7 +53,7 @@ public final class TrackedEntities {
 		return this.changesWhenBuilt == changes && this.tick == level.getServer().getTickCount();
 	}
 
-	public List<Entity> in(long chunk) {
+	public List<Object> in(long chunk) {
 		return this.byChunk.getOrDefault(chunk, List.of());
 	}
 }

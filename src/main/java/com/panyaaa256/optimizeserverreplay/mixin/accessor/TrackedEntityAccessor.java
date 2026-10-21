@@ -8,4 +8,7 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 public interface TrackedEntityAccessor {
 	@Accessor("entity")
 	Entity osr$entity();
+
+	@Accessor("range")
+	int osr$range();
 }

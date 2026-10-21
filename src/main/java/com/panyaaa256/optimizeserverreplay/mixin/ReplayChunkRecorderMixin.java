@@ -3,8 +3,10 @@ package com.panyaaa256.optimizeserverreplay.mixin;
 import com.panyaaa256.optimizeserverreplay.HookStatus;
 import com.panyaaa256.optimizeserverreplay.RecordingFilterHolder;
 import com.panyaaa256.optimizeserverreplay.config.FilterConfig;
+import com.panyaaa256.optimizeserverreplay.mixin.accessor.TrackedEntityAccessor;
 import com.panyaaa256.optimizeserverreplay.snapshot.TrackedEntities;
 import net.casual.arcade.replay.recorder.ChunkSender;
+import net.casual.arcade.replay.recorder.chunk.ReplayChunkRecordable;
 import net.casual.arcade.replay.recorder.chunk.ReplayChunkRecorder;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEntityLinkPacket;
@@ -26,16 +28,13 @@ import java.util.List;
 // Everything here runs on the server thread.
 @Mixin(value = ReplayChunkRecorder.class, remap = false)
 public abstract class ReplayChunkRecorderMixin {
-	// Set while the chunks of a snapshot are being sent.
+	// Set while sendChunks sends the chunks of the recording.
 	@Unique
 	private @Nullable TrackedEntities osr$entities;
 
 	@Inject(method = "sendChunks", at = @At("HEAD"))
 	private void osr$onSendChunks(CallbackInfo ci) {
-		FilterConfig config = ((RecordingFilterHolder) this).osr$config();
-		this.osr$entities = config != null && config.optimizeSnapshot() && HookStatus.snapshotHooksApplied()
-			? TrackedEntities.of(this.osr$level())
-			: null;
+		this.osr$entities = this.osr$isOptimized() ? TrackedEntities.of(this.osr$level()) : null;
 	}
 
 	@Inject(method = "sendChunks", at = @At("RETURN"))
@@ -44,21 +43,18 @@ public abstract class ReplayChunkRecorderMixin {
 	}
 
 	/**
-	 * What {@code ChunkSender.sendChunk} does for a snapshot, with the entities of the chunk
-	 * taken from {@link #osr$entities}. A snapshot sees every entity as already sent, so all that
-	 * is left of the entities is to send their leashes and passengers again.
+	 * What {@code ChunkSender.sendChunk} does, with the entities of the chunk taken from
+	 * {@link #osr$entities}. Snapshots and the start of a recording send their chunks through
+	 * sendChunks; a chunk sent on its own is left to Arcade.
 	 */
 	@Inject(method = "sendChunk", at = @At("HEAD"), cancellable = true)
 	private void osr$onSendChunk(LevelChunk chunk, ChunkSender.SeenEntities seen, CallbackInfo ci) {
 		ServerLevel level = this.osr$level();
-		if (seen != ChunkSender.SeenEntities.Companion.all()) {
-			return;
-		}
-		if (this.osr$entities != null && !this.osr$entities.isCurrent(level)) {
-			this.osr$entities = TrackedEntities.of(level);
-		}
 		if (this.osr$entities == null) {
 			return;
+		}
+		if (!this.osr$entities.isCurrent(level)) {
+			this.osr$entities = TrackedEntities.of(level);
 		}
 
 		ChunkSender sender = (ChunkSender) this;
@@ -66,7 +62,19 @@ public abstract class ReplayChunkRecorderMixin {
 
 		List<Mob> leashed = new ArrayList<>();
 		List<Entity> ridden = new ArrayList<>();
-		for (Entity entity : this.osr$entities.in(chunk.getPos().toLong())) {
+		int viewDistance = level.getServer().getPlayerList().getViewDistance();
+		for (Object tracked : this.osr$entities.in(chunk.getPos().toLong())) {
+			TrackedEntityAccessor accessor = (TrackedEntityAccessor) tracked;
+			Entity entity = accessor.osr$entity();
+			if (!seen.has(entity.getId())) {
+				double range = Math.min(accessor.osr$range(), viewDistance * 16);
+				if (sender.shouldTrackEntity(entity, range)) {
+					// What ReplayChunkRecorder.addTrackedEntity does.
+					((ReplayChunkRecordable) tracked).addRecorder((ReplayChunkRecorder) (Object) this);
+					seen.add(entity.getId());
+				}
+			}
+
 			if (entity instanceof Mob mob && mob.getLeashHolder() != null) {
 				leashed.add(mob);
 			}
@@ -83,6 +91,12 @@ public abstract class ReplayChunkRecorderMixin {
 
 		sender.onChunkSent(chunk);
 		ci.cancel();
+	}
+
+	@Unique
+	private boolean osr$isOptimized() {
+		FilterConfig config = ((RecordingFilterHolder) this).osr$config();
+		return config != null && config.optimizeSnapshot() && HookStatus.snapshotHooksApplied();
 	}
 
 	@Unique
