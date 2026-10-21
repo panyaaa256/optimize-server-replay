@@ -29,6 +29,7 @@ public record FilterConfig(
 	int blockUpdateIntervalTicks,
 	boolean optimizeSaving,
 	boolean zipWhileRecording,
+	boolean optimizeSnapshot,
 	int zipCompressionLevel
 ) {
 	/** The length of a Flashback replay chunk, which a batch of block updates cannot outlast. */
@@ -48,6 +49,7 @@ public record FilterConfig(
 		0,
 		true,
 		false,
+		true,
 		// The level Arcade saves with.
 		Deflater.BEST_SPEED
 	);
@@ -87,6 +89,7 @@ public record FilterConfig(
 		json.addProperty("block_update_interval_ticks", DEFAULT.blockUpdateIntervalTicks);
 		json.addProperty("optimize_saving", DEFAULT.optimizeSaving);
 		json.addProperty("zip_while_recording", DEFAULT.zipWhileRecording);
+		json.addProperty("optimize_snapshot", DEFAULT.optimizeSnapshot);
 		json.addProperty("zip_compression_level", DEFAULT.zipCompressionLevel);
 		try {
 			Files.createDirectories(file.getParent());
@@ -117,6 +120,7 @@ public record FilterConfig(
 			readWholeNumber(json, "block_update_interval_ticks", DEFAULT.blockUpdateIntervalTicks, MAX_BLOCK_UPDATE_INTERVAL_TICKS),
 			readBoolean(json, "optimize_saving", DEFAULT.optimizeSaving),
 			readBoolean(json, "zip_while_recording", DEFAULT.zipWhileRecording),
+			readBoolean(json, "optimize_snapshot", DEFAULT.optimizeSnapshot),
 			readWholeNumber(json, "zip_compression_level", DEFAULT.zipCompressionLevel, MAX_ZIP_COMPRESSION_LEVEL)
 		);
 	}

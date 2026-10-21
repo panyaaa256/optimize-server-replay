@@ -4,14 +4,18 @@
 	"plugin": "com.panyaaa256.optimizeserverreplay.mixin.OptimizeServerReplayMixinPlugin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
+		"ChunkMapMixin",
 		"FlashbackChunkedWriterMixin",
 		"FlashbackWriterMixin",
 		"RecorderRecovererMixin",
+		"ReplayChunkRecorderMixin",
 		"ReplayRecorderMixin",
 		"ServerReplayMixin",
+		"accessor.ChunkMapAccessor",
 		"accessor.ClientboundEntityEventPacketAccessor",
 		"accessor.ClientboundMoveEntityPacketAccessor",
-		"accessor.ClientboundRotateHeadPacketAccessor"
+		"accessor.ClientboundRotateHeadPacketAccessor",
+		"accessor.TrackedEntityAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 0

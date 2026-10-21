@@ -34,12 +34,25 @@ public final class HookStatus {
 		"FlashbackWriter#osr$onZip"
 	);
 
+	/**
+	 * The hooks that {@code optimize_snapshot} needs, by the name of their handler. ChunkMap is
+	 * named differently at runtime, so they are matched by the handler alone.
+	 */
+	public static final Set<String> SNAPSHOT_HOOKS = Set.of(
+		"osr$onSendChunks",
+		"osr$onSendChunksEnd",
+		"osr$onSendChunk",
+		"osr$onAddEntity",
+		"osr$onRemoveEntity"
+	);
+
 	private static final Logger LOGGER = LoggerFactory.getLogger("optimize-server-replay");
 
 	private static final Set<String> APPLIED = ConcurrentHashMap.newKeySet();
 	private static final AtomicBoolean WARNED = new AtomicBoolean();
 	private static final Set<String> APPLIED_HANDLERS = ConcurrentHashMap.newKeySet();
 	private static final AtomicBoolean WARNED_STREAMING = new AtomicBoolean();
+	private static final AtomicBoolean WARNED_SNAPSHOT = new AtomicBoolean();
 
 	private HookStatus() {
 	}
@@ -67,6 +80,29 @@ public final class HookStatus {
 			LOGGER.warn(
 				"zip_while_recording is turned off: the installed Server Replay / Arcade versions do not match, "
 					+ "so these hooks were not applied: {}. Recordings are zipped when they are saved.",
+				missing
+			);
+		}
+		return false;
+	}
+
+	/**
+	 * Without the hooks on ChunkMap, the entities could be sorted into their chunks before the
+	 * level tracks a new one, and its leash would be missing from the snapshot.
+	 */
+	public static boolean snapshotHooksApplied() {
+		Set<String> missing = new TreeSet<>(SNAPSHOT_HOOKS);
+		for (String applied : APPLIED_HANDLERS) {
+			missing.remove(applied.substring(applied.indexOf('#') + 1));
+		}
+		if (missing.isEmpty()) {
+			return true;
+		}
+
+		if (WARNED_SNAPSHOT.compareAndSet(false, true)) {
+			LOGGER.warn(
+				"optimize_snapshot is turned off: the installed Server Replay / Arcade versions do not match, "
+					+ "so these hooks were not applied: {}. Snapshots are taken the usual way.",
 				missing
 			);
 		}
