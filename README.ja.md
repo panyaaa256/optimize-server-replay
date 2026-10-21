@@ -77,6 +77,15 @@ Server Replay の `config/server-replay/config.json` で、次の設定を合わ
 - `"ignore_sound_packets": true`：ピストンの音などを記録しません。
 - `"optimize_entity_packets": false`：`ignore_entities` を使う場合のおすすめです。エンティティを省くので、Server Replay 側の最適化は要らなくなります。
 
+## クラッシュ後の録画の復旧
+
+Server Replay は、録画中にサーバーが落ちた録画を次の起動時に復旧しますが、対象は ReplayMod 形式だけです。この mod を入れると、Flashback 形式の録画（チャンク録画・プレイヤー録画とも）も復旧されます。
+
+- 録画フォルダを、通常の保存と同じ `<録画名>.zip` にまとめ、元のフォルダを削除します。同じ名前の zip がすでにあるときは、`<録画名> (recovered 1).zip` のように別の名前で保存します。
+- 残るのは、最後に区切られたリプレイチャンクまでです。Flashback 形式は 5 分ごとに区切ってディスクに書くため、落ちる直前の最大 5 分は失われます。
+- 区切りが 1 つもない（録画開始から 5 分以内に落ちた）録画や、復旧に失敗した録画は、フォルダをそのまま残します。
+- Server Replay の `"recover_unsaved_replays"` が `false` のときは、復旧しません。
+
 ## うまく動かないとき
 
 録画を始めたときに、ログに次の警告が出ることがあります。

@@ -77,6 +77,15 @@ These settings in `config/server-replay/config.json` work well together with thi
 - `"ignore_sound_packets": true`: leaves out sounds, such as those of pistons.
 - `"optimize_entity_packets": false`: recommended with `ignore_entities`. The entities are left out anyway, so Server Replay no longer needs to optimize their packets.
 
+## Recovering recordings after a crash
+
+When the server goes down during a recording, Server Replay recovers it on the next start, but only in the ReplayMod format. With this mod, recordings in the Flashback format (both chunk and player recordings) are recovered too.
+
+- The recording folder is packed into `<recording name>.zip`, as a normal save would, and the folder is deleted. If a zip with that name already exists, the recording is saved under another name, such as `<recording name> (recovered 1).zip`.
+- The recording is kept up to the last replay chunk that was complete. The Flashback format writes to disk in 5 minute chunks, so up to the last 5 minutes before the crash are lost.
+- A recording without a complete chunk (one that crashed within 5 minutes of starting), or one that could not be recovered, is left as a folder.
+- Nothing is recovered when `"recover_unsaved_replays"` is `false` in Server Replay.
+
 ## Troubleshooting
 
 When a recording starts, the log may show this warning:
