@@ -27,6 +27,7 @@ public record FilterConfig(
 	Set<EntityType<?>> entityWhitelist,
 	boolean ignoreBlockAction,
 	int blockUpdateIntervalTicks,
+	boolean optimizeSaving,
 	int zipCompressionLevel
 ) {
 	/** The length of a Flashback replay chunk, which a batch of block updates cannot outlast. */
@@ -44,6 +45,7 @@ public record FilterConfig(
 		),
 		false,
 		0,
+		true,
 		// The level Arcade saves with.
 		Deflater.BEST_SPEED
 	);
@@ -81,6 +83,7 @@ public record FilterConfig(
 		json.add("entity_whitelist", whitelist);
 		json.addProperty("ignore_block_action", DEFAULT.ignoreBlockAction);
 		json.addProperty("block_update_interval_ticks", DEFAULT.blockUpdateIntervalTicks);
+		json.addProperty("optimize_saving", DEFAULT.optimizeSaving);
 		json.addProperty("zip_compression_level", DEFAULT.zipCompressionLevel);
 		try {
 			Files.createDirectories(file.getParent());
@@ -109,6 +112,7 @@ public record FilterConfig(
 			readWhitelist(json),
 			readBoolean(json, "ignore_block_action", DEFAULT.ignoreBlockAction),
 			readWholeNumber(json, "block_update_interval_ticks", DEFAULT.blockUpdateIntervalTicks, MAX_BLOCK_UPDATE_INTERVAL_TICKS),
+			readBoolean(json, "optimize_saving", DEFAULT.optimizeSaving),
 			readWholeNumber(json, "zip_compression_level", DEFAULT.zipCompressionLevel, MAX_ZIP_COMPRESSION_LEVEL)
 		);
 	}

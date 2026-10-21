@@ -2,6 +2,7 @@ package com.panyaaa256.optimizeserverreplay.save;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -31,19 +32,24 @@ public final class ReplayZip {
 	}
 
 	/**
-	 * Arcade keeps the previous metadata in {@code metadata.json.old} while recording, which
-	 * the replay does not need once it is saved.
+	 * @param optimize whether to buffer the output and leave out {@code metadata.json.old}, which
+	 *     Arcade keeps the previous metadata in while recording, and the saved replay never reads
 	 */
-	public static void zip(Path source, Path output, int level) throws IOException {
+	public static void zip(Path source, Path output, int level, boolean optimize) throws IOException {
 		List<Path> files;
 		try (Stream<Path> stream = Files.walk(source)) {
 			files = stream.filter(Files::isRegularFile).sorted().toList();
 		}
 
-		try (ZipOutputStream out = open(output, level)) {
+		OutputStream stream = Files.newOutputStream(output);
+		if (optimize) {
+			stream = new BufferedOutputStream(stream, BUFFER_SIZE);
+		}
+		try (ZipOutputStream out = new ZipOutputStream(stream)) {
+			out.setLevel(level);
 			for (Path file : files) {
 				String name = source.relativize(file).toString().replace('\\', '/');
-				if (name.equals(METADATA_OLD)) {
+				if (optimize && name.equals(METADATA_OLD)) {
 					continue;
 				}
 				out.putNextEntry(new ZipEntry(name));

@@ -50,8 +50,11 @@ public abstract class ReplayRecorderMixin implements RecordingFilterHolder {
 
 		try {
 			if (HookStatus.allHooksApplied()) {
-				this.osr$filter = new RecordingFilter(recorder, FilterConfig.current());
-				((FlashbackWriterHolder) this.getWriter()).osr$skipChunkCacheSync();
+				FilterConfig config = FilterConfig.current();
+				this.osr$filter = new RecordingFilter(recorder, config);
+				if (config.optimizeSaving()) {
+					((FlashbackWriterHolder) this.getWriter()).osr$skipChunkCacheSync();
+				}
 			}
 		} catch (Exception e) {
 			OptimizeServerReplay.LOGGER.error("Failed to set up the packet filters, the recording continues without them", e);

@@ -19,6 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.zip.Deflater;
 
 @Mixin(value = FlashbackWriter.class, remap = false)
 public abstract class FlashbackWriterMixin implements FlashbackWriterHolder {
@@ -43,11 +44,12 @@ public abstract class FlashbackWriterMixin implements FlashbackWriterHolder {
 	)
 	private static void osr$onZip(FileUtils utils, Path source, Path output, FlashbackWriter writer) throws IOException {
 		FilterConfig config = ((RecordingFilterHolder) writer.getRecorder()).osr$config();
-		if (config == null) {
+		// Nothing differs from how Arcade saves, so leave it to Arcade.
+		if (config == null || (!config.optimizeSaving() && config.zipCompressionLevel() == Deflater.BEST_SPEED)) {
 			utils.zip(source, output);
 			return;
 		}
-		ReplayZip.zip(source, output, config.zipCompressionLevel());
+		ReplayZip.zip(source, output, config.zipCompressionLevel(), config.optimizeSaving());
 	}
 
 	@Override

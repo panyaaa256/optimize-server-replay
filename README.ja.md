@@ -40,6 +40,7 @@ Optimize Server Replay は、Server Replay と共にサーバーに導入して�
   ],
   "ignore_block_action": false,
   "block_update_interval_ticks": 0,
+  "optimize_saving": true,
   "zip_compression_level": 1
 }
 ```
@@ -50,6 +51,7 @@ Optimize Server Replay は、Server Replay と共にサーバーに導入して�
 | `entity_whitelist` | エンティティ ID の配列 | 上の 5 種類 | `ignore_entities` が `true` のときに、記録を続けるエンティティの種類です。空にすると、すべてのエンティティを記録しません。`ignore_entities` が `false` のときは使われません |
 | `ignore_block_action` | true / false | `false` | Block Action をすべて記録しません |
 | `block_update_interval_ticks` | 0〜6000 の整数 | `0` | ブロックの変化を、この tick 数ごとにまとめて記録します。`0` ならまとめません |
+| `optimize_saving` | true / false | `true` | 録画の保存を速くします。録画の中身は変わりません（[保存の高速化](#保存の高速化)） |
 | `zip_compression_level` | 0〜9 の整数 | `1` | 録画を保存するときの zip の圧縮レベルです。大きいほどファイルは小さくなり、保存に時間がかかります。`0` なら圧縮しません。`1` は Server Replay と同じです |
 
 - 設定は `/replay reload` で読み直せます。読み直した設定は、そのあとに開始した録画から使用されます。録画中のものは、開始したときの設定のままです。
@@ -81,7 +83,7 @@ Server Replay の `config/server-replay/config.json` で、次の設定を合わ
 
 ### 保存の高速化
 
-Flashback 形式のチャンク録画では、設定に関係なく、保存の仕方を次のように変えます。録画の中身は変わりません。
+`optimize_saving` が `true` のとき、保存の仕方を次のように変えます。zip を展開した中身は、`metadata.json.old` が無いことを除いて、Server Replay だけのときと同じです。
 
 - 録画を zip にまとめるときに、書き込みをまとめて行います。
 - 地形のキャッシュを書くたびに、ディスクへの書き込みの完了を待たないようにします。録画のほかのファイルと同じ扱いになります。
