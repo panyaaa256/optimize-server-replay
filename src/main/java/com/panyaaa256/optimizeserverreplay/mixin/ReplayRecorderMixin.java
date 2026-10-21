@@ -6,7 +6,9 @@ import com.panyaaa256.optimizeserverreplay.OptimizeServerReplay;
 import com.panyaaa256.optimizeserverreplay.RecordingFilter;
 import com.panyaaa256.optimizeserverreplay.RecordingFilterHolder;
 import com.panyaaa256.optimizeserverreplay.config.FilterConfig;
+import com.panyaaa256.optimizeserverreplay.save.FlashbackWriterHolder;
 import net.casual.arcade.replay.io.ReplayFormat;
+import net.casual.arcade.replay.io.writer.ReplayWriter;
 import net.casual.arcade.replay.recorder.ReplayRecorder;
 import net.casual.arcade.replay.recorder.chunk.ReplayChunkRecorder;
 import net.casual.arcade.replay.recorder.settings.RecorderSettings;
@@ -14,6 +16,7 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.server.MinecraftServer;
 import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -28,6 +31,9 @@ public abstract class ReplayRecorderMixin implements RecordingFilterHolder {
 	@Unique
 	@Nullable
 	private RecordingFilter osr$filter;
+
+	@Shadow
+	protected abstract ReplayWriter getWriter();
 
 	@Inject(method = "<init>", at = @At("TAIL"))
 	private void osr$onInit(
@@ -45,6 +51,7 @@ public abstract class ReplayRecorderMixin implements RecordingFilterHolder {
 		try {
 			if (HookStatus.allHooksApplied()) {
 				this.osr$filter = new RecordingFilter(recorder, FilterConfig.current());
+				((FlashbackWriterHolder) this.getWriter()).osr$skipChunkCacheSync();
 			}
 		} catch (Exception e) {
 			OptimizeServerReplay.LOGGER.error("Failed to set up the packet filters, the recording continues without them", e);
@@ -81,5 +88,10 @@ public abstract class ReplayRecorderMixin implements RecordingFilterHolder {
 		if (this.osr$filter != null) {
 			this.osr$filter.flushBlockUpdates();
 		}
+	}
+
+	@Override
+	public @Nullable FilterConfig osr$config() {
+		return this.osr$filter == null ? null : this.osr$filter.config();
 	}
 }

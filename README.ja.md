@@ -39,7 +39,8 @@ Optimize Server Replay は、Server Replay と共にサーバーに導入して�
     "minecraft:player"
   ],
   "ignore_block_action": false,
-  "block_update_interval_ticks": 0
+  "block_update_interval_ticks": 0,
+  "zip_compression_level": 1
 }
 ```
 
@@ -49,6 +50,7 @@ Optimize Server Replay は、Server Replay と共にサーバーに導入して�
 | `entity_whitelist` | エンティティ ID の配列 | 上の 5 種類 | `ignore_entities` が `true` のときに、記録を続けるエンティティの種類です。空にすると、すべてのエンティティを記録しません。`ignore_entities` が `false` のときは使われません |
 | `ignore_block_action` | true / false | `false` | Block Action をすべて記録しません |
 | `block_update_interval_ticks` | 0〜6000 の整数 | `0` | ブロックの変化を、この tick 数ごとにまとめて記録します。`0` ならまとめません |
+| `zip_compression_level` | 0〜9 の整数 | `1` | 録画を保存するときの zip の圧縮レベルです。大きいほどファイルは小さくなり、保存に時間がかかります。`0` なら圧縮しません。`1` は Server Replay と同じです |
 
 - 設定は `/replay reload` で読み直せます。読み直した設定は、そのあとに開始した録画から使用されます。録画中のものは、開始したときの設定のままです。
 - 値の型が違う、キーが足りない、ファイルが JSON として読めない、といった場合は、警告をログに出して初期値を使います。設定ファイルが書き換えられることはありません。
@@ -76,6 +78,14 @@ Server Replay の `config/server-replay/config.json` で、次の設定を合わ
 - `"default_encoding": "flashback"`：この mod の対象は Flashback 形式だけです。
 - `"ignore_sound_packets": true`：ピストンの音などを記録しません。
 - `"optimize_entity_packets": false`：`ignore_entities` を使う場合のおすすめです。エンティティを省くので、Server Replay 側の最適化は要らなくなります。
+
+### 保存の高速化
+
+Flashback 形式のチャンク録画では、設定に関係なく、保存の仕方を次のように変えます。録画の中身は変わりません。
+
+- 録画を zip にまとめるときに、書き込みをまとめて行います。
+- 地形のキャッシュを書くたびに、ディスクへの書き込みの完了を待たないようにします。録画のほかのファイルと同じ扱いになります。
+- 録画中にだけ使う `metadata.json.old` を、zip に入れません。
 
 ## クラッシュ後の録画の復旧
 

@@ -4,9 +4,10 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.panyaaa256.optimizeserverreplay.OptimizeServerReplay;
+import com.panyaaa256.optimizeserverreplay.config.FilterConfig;
+import com.panyaaa256.optimizeserverreplay.save.ReplayZip;
 import org.jspecify.annotations.Nullable;
 
-import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -21,7 +22,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
-import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -34,13 +34,11 @@ import java.util.zip.ZipOutputStream;
  * which is in memory until it ends, is lost.
  */
 public final class FlashbackRecovery {
-	private static final String METADATA = "metadata.json";
-	private static final String METADATA_OLD = "metadata.json.old";
+	private static final String METADATA = ReplayZip.METADATA;
+	private static final String METADATA_OLD = ReplayZip.METADATA_OLD;
 	private static final String CHUNK_CACHES = "level_chunk_caches";
 	private static final String CHUNK_EXTENSION = ".flashback";
 	private static final String ZIP_EXTENSION = ".zip";
-
-	private static final int BUFFER_SIZE = 1 << 20;
 
 	private FlashbackRecovery() {
 	}
@@ -156,9 +154,7 @@ public final class FlashbackRecovery {
 			files = stream.filter(Files::isRegularFile).sorted().toList();
 		}
 
-		try (ZipOutputStream out = new ZipOutputStream(new BufferedOutputStream(Files.newOutputStream(output), BUFFER_SIZE))) {
-			out.setLevel(Deflater.BEST_SPEED);
-
+		try (ZipOutputStream out = ReplayZip.open(output, FilterConfig.current().zipCompressionLevel())) {
 			out.putNextEntry(new ZipEntry(METADATA));
 			out.write(metadata.bytes());
 			out.closeEntry();

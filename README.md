@@ -39,7 +39,8 @@ The config file is `config/optimize-server-replay/config.json`. If it does not e
     "minecraft:player"
   ],
   "ignore_block_action": false,
-  "block_update_interval_ticks": 0
+  "block_update_interval_ticks": 0,
+  "zip_compression_level": 1
 }
 ```
 
@@ -49,6 +50,7 @@ The config file is `config/optimize-server-replay/config.json`. If it does not e
 | `entity_whitelist` | array of entity ids | the five above | The entity types that are still recorded while `ignore_entities` is `true`. Leave it empty to record no entities at all. Not used while `ignore_entities` is `false` |
 | `ignore_block_action` | true / false | `false` | Do not record any block actions |
 | `block_update_interval_ticks` | whole number from 0 to 6000 | `0` | Record block changes together once every this many ticks. `0` records them as they happen |
+| `zip_compression_level` | whole number from 0 to 9 | `1` | The zip compression level a recording is saved with. A higher level makes the file smaller and the save slower. `0` stores the files without compressing them. `1` is what Server Replay uses |
 
 - `/replay reload` reads the config again. The new settings are used by the recordings that start after that. A recording that is already running keeps the settings it started with.
 - When a value has the wrong type, a key is missing, or the file is not valid JSON, the mod logs a warning and uses the default. It never rewrites your config file.
@@ -76,6 +78,14 @@ These settings in `config/server-replay/config.json` work well together with thi
 - `"default_encoding": "flashback"`: the mod only applies to the Flashback format.
 - `"ignore_sound_packets": true`: leaves out sounds, such as those of pistons.
 - `"optimize_entity_packets": false`: recommended with `ignore_entities`. The entities are left out anyway, so Server Replay no longer needs to optimize their packets.
+
+### Faster saving
+
+Flashback chunk recordings are saved differently, whatever the settings. The content of the recording stays the same.
+
+- The zip of a recording is written in larger pieces.
+- Each chunk of terrain that is cached no longer waits until it is on the disk, just like the other files of the recording.
+- `metadata.json.old`, which is only needed while recording, is left out of the zip.
 
 ## Recovering recordings after a crash
 
