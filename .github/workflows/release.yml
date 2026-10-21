@@ -1,0 +1,50 @@
+# Publishes the GitHub Release of a mod version with its jar. Push the tag
+# v<version> on master to run it (see docs/releasing.md); gradle.properties
+# must already have that version.
+
+name: release
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v6
+      - name: check the mod version
+        run: |
+          version=$(sed -n 's/^version=\(.*\)$/\1/p' gradle.properties)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::gradle.properties has version $version, but the tag is $GITHUB_REF_NAME"
+            exit 1
+          fi
+      - name: validate gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
+      - name: setup jdk
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'microsoft'
+      - name: make gradle wrapper executable
+        run: chmod +x ./gradlew
+      - name: build
+        run: ./gradlew build
+      # The mod jar only; the -sources jar is not attached to the release.
+      - name: collect jars
+        run: |
+          mkdir -p release
+          find build/libs -name '*.jar' ! -name '*-sources.jar' -exec cp {} release/ \;
+      - name: create the release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: CHANGELOG.md
+          files: release/*.jar
+          fail_on_unmatched_files: true

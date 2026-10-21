@@ -1,0 +1,24 @@
+# 更新履歴
+
+Optimize Server Replay の変更点の日本語版です。リリースノート（GitHub Releases）は英語だけで、その内容は [CHANGELOG.md](CHANGELOG.md) にあります。
+
+## 未リリース
+
+## 1.1.0 (2026-10-21)
+
+チャンク録画の保存を速くし、クラッシュで途中になった録画を復旧するようにしました。今の `config.json` には新しいキーがないため、キーを足すまでは、キーごとに警告をログに出して初期値を使います。
+
+### 追加
+- 録画中にサーバーが止まった Flashback 形式のチャンク録画を、次の起動時に復旧。最後に区切られたリプレイチャンクまでが残ります（[#1](https://github.com/panyaaa256/optimize-server-replay/pull/1)）
+- `optimize_saving` を追加（初期値 `true`）。Flashback 形式のチャンク録画の保存を速くします。zip を展開した中身は、`metadata.json.old` が無いことを除いて、Server Replay だけのときと同じです（[#2](https://github.com/panyaaa256/optimize-server-replay/pull/2)）
+- `zip_compression_level` を追加。録画を保存するときの zip の圧縮レベル（0〜9）です。初期値の `1` は Server Replay と同じです（[#2](https://github.com/panyaaa256/optimize-server-replay/pull/2)）
+- `zip_while_recording` を追加（初期値 `false`）。録画しながら zip にまとめます。保存がすぐに終わり、録画中のディスク使用量がほぼ zip の分だけになります。この場合、クラッシュで途中になった録画の復旧には、この mod が必要です（[#3](https://github.com/panyaaa256/optimize-server-replay/pull/3)）
+
+## 1.0.0 (2026-10-07)
+
+最初のリリースです。[Server Replay](https://github.com/senseiwells/ServerReplay) のチャンク録画から、選んだパケットを除きます。
+
+### 追加
+- `ignore_entities`：エンティティのパケットを記録しません。`entity_whitelist` の種類は記録を続けます
+- `ignore_block_action`：ピストンの伸び縮みやチェストの開閉などの Block Action を記録しません
+- `block_update_interval_ticks`：ブロックの変化を、指定した tick 数ごとにまとめて記録します
