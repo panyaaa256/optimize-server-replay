@@ -6,6 +6,7 @@ import com.google.gson.JsonParser;
 import com.panyaaa256.optimizeserverreplay.OptimizeServerReplay;
 import com.panyaaa256.optimizeserverreplay.config.FilterConfig;
 import com.panyaaa256.optimizeserverreplay.save.ReplayZip;
+import com.panyaaa256.optimizeserverreplay.save.StreamingZip;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
@@ -19,10 +20,13 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 /**
@@ -32,6 +36,10 @@ import java.util.zip.ZipOutputStream;
  * <p>Arcade writes a replay chunk to the folder first and lists it in {@code metadata.json} after,
  * so every chunk that the metadata lists is complete. Only the chunk that was being recorded,
  * which is in memory until it ends, is lost.
+ *
+ * <p>With {@code zip_while_recording}, part of the files are in {@link StreamingZip#PARTIAL}
+ * instead, which ends wherever the server stopped writing to it. Its complete entries are taken
+ * as they are.
  */
 public final class FlashbackRecovery {
 	private static final String METADATA = ReplayZip.METADATA;
@@ -52,7 +60,8 @@ public final class FlashbackRecovery {
 		}
 
 		try {
-			Metadata metadata = readMetadata(recording);
+			Set<String> partial = readPartialEntries(recording);
+			Metadata metadata = readMetadata(recording, partial);
 			if (metadata == null) {
 				OptimizeServerReplay.LOGGER.warn(
 					"Could not recover the Flashback recording {}: it has no readable metadata, so the folder is left as it is",
@@ -72,7 +81,7 @@ public final class FlashbackRecovery {
 			Path output = findOutputPath(recording);
 			Path temp = output.resolveSibling(output.getFileName() + ".part");
 			try {
-				zip(recording, metadata, temp);
+				zip(recording, metadata, partial, FilterConfig.current().zipCompressionLevel(), temp);
 				Files.move(temp, output, StandardCopyOption.ATOMIC_MOVE);
 			} catch (IOException | RuntimeException e) {
 				Files.deleteIfExists(temp);
@@ -91,6 +100,18 @@ public final class FlashbackRecovery {
 		return true;
 	}
 
+	/**
+	 * Packs a recording that is still complete on disk, but could not be saved the usual way.
+	 */
+	public static void assemble(Path recording, int level, Path output) throws IOException {
+		Set<String> partial = readPartialEntries(recording);
+		Metadata metadata = readMetadata(recording, partial);
+		if (metadata == null) {
+			throw new IOException("The recording " + recording + " has no readable metadata");
+		}
+		zip(recording, metadata, partial, level, output);
+	}
+
 	// Server Replay keeps a ReplayMod recording next to a folder with the same name and ".tmp".
 	private static boolean isFlashbackRecording(Path recording) {
 		if (!Files.isDirectory(recording)) {
@@ -104,9 +125,9 @@ public final class FlashbackRecovery {
 
 	// Arcade moves metadata.json to metadata.json.old before writing the new one, so a crash in
 	// between leaves only the old one, which lists one chunk fewer.
-	private static @Nullable Metadata readMetadata(Path recording) {
+	private static @Nullable Metadata readMetadata(Path recording, Set<String> partial) {
 		for (String name : List.of(METADATA, METADATA_OLD)) {
-			Metadata metadata = readMetadata(recording, recording.resolve(name));
+			Metadata metadata = readMetadata(recording, partial, recording.resolve(name));
 			if (metadata != null) {
 				return metadata;
 			}
@@ -114,7 +135,7 @@ public final class FlashbackRecovery {
 		return null;
 	}
 
-	private static @Nullable Metadata readMetadata(Path recording, Path file) {
+	private static @Nullable Metadata readMetadata(Path recording, Set<String> partial, Path file) {
 		if (!Files.isRegularFile(file)) {
 			return null;
 		}
@@ -126,7 +147,7 @@ public final class FlashbackRecovery {
 				return null;
 			}
 			for (String chunk : chunks.keySet()) {
-				if (!Files.isRegularFile(recording.resolve(chunk))) {
+				if (!Files.isRegularFile(recording.resolve(chunk)) && !partial.contains(chunk)) {
 					OptimizeServerReplay.LOGGER.warn("{} lists the replay chunk {}, which is missing", file, chunk);
 					return null;
 				}
@@ -136,6 +157,29 @@ public final class FlashbackRecovery {
 			OptimizeServerReplay.LOGGER.warn("Could not read {}", file, e);
 			return null;
 		}
+	}
+
+	/**
+	 * @return the names of the entries in the partial zip that can be read to their end, in the
+	 *     order they were written
+	 */
+	private static Set<String> readPartialEntries(Path recording) {
+		Set<String> names = new LinkedHashSet<>();
+		Path partial = recording.resolve(StreamingZip.PARTIAL);
+		if (!Files.isRegularFile(partial)) {
+			return names;
+		}
+		try (ZipInputStream in = new ZipInputStream(Files.newInputStream(partial))) {
+			ZipEntry entry;
+			while ((entry = in.getNextEntry()) != null) {
+				// Reading to the end checks the size and the checksum of the entry.
+				in.transferTo(OutputStream.nullOutputStream());
+				names.add(entry.getName());
+			}
+		} catch (IOException | RuntimeException e) {
+			// The entry that was being written when the server stopped.
+		}
+		return names;
 	}
 
 	// Never overwrite a replay that is already there.
@@ -148,21 +192,35 @@ public final class FlashbackRecovery {
 		return output;
 	}
 
-	private static void zip(Path recording, Metadata metadata, Path output) throws IOException {
+	private static void zip(Path recording, Metadata metadata, Set<String> partial, int level, Path output) throws IOException {
 		List<Path> files;
 		try (Stream<Path> stream = Files.walk(recording)) {
 			files = stream.filter(Files::isRegularFile).sorted().toList();
 		}
+		Set<String> names = new HashSet<>();
+		for (Path file : files) {
+			names.add(recording.relativize(file).toString().replace('\\', '/'));
+		}
 
-		try (ZipOutputStream out = ReplayZip.open(output, FilterConfig.current().zipCompressionLevel())) {
+		try (ZipOutputStream out = ReplayZip.open(output, level)) {
 			out.putNextEntry(new ZipEntry(METADATA));
 			out.write(metadata.bytes());
 			out.closeEntry();
 
+			// A file that is still in the folder was not deleted after it went into the partial
+			// zip, so the copy in the folder is the one that is known to be whole.
+			Set<String> fromPartial = new HashSet<>();
+			for (String name : partial) {
+				if (!names.contains(name) && shouldInclude(name, metadata)) {
+					fromPartial.add(name);
+				}
+			}
+			copyPartialEntries(recording.resolve(StreamingZip.PARTIAL), fromPartial, out);
+
 			for (Path file : files) {
 				Path relative = recording.relativize(file);
 				String name = relative.toString().replace('\\', '/');
-				if (!shouldInclude(relative, name, metadata)) {
+				if (name.equals(StreamingZip.PARTIAL) || !shouldInclude(name, metadata)) {
 					continue;
 				}
 
@@ -177,9 +235,28 @@ public final class FlashbackRecovery {
 		}
 	}
 
+	private static void copyPartialEntries(Path partial, Set<String> names, ZipOutputStream out) throws IOException {
+		if (names.isEmpty()) {
+			return;
+		}
+		int copied = 0;
+		try (ZipInputStream in = new ZipInputStream(Files.newInputStream(partial))) {
+			ZipEntry entry;
+			while (copied < names.size() && (entry = in.getNextEntry()) != null) {
+				if (!names.contains(entry.getName())) {
+					continue;
+				}
+				out.putNextEntry(new ZipEntry(entry.getName()));
+				in.transferTo(out);
+				out.closeEntry();
+				copied++;
+			}
+		}
+	}
+
 	// A replay chunk that the metadata does not list was still being written.
-	private static boolean shouldInclude(Path relative, String name, Metadata metadata) {
-		if (relative.getNameCount() != 1) {
+	private static boolean shouldInclude(String name, Metadata metadata) {
+		if (name.contains("/")) {
 			return true;
 		}
 		if (name.equals(METADATA) || name.equals(METADATA_OLD)) {

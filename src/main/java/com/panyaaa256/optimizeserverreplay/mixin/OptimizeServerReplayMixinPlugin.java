@@ -13,13 +13,15 @@ import java.util.Set;
 
 /**
  * Mixin names the handler of an injection like
- * {@code handler$zpb000$optimize-server-replay$osr$onTick} and calls it from the target method,
- * so a call to such a method in the applied class means the hook is in place.
+ * {@code handler$zpb000$optimize-server-replay$osr$onTick} (or {@code redirect$...} for a
+ * redirect) and calls it from the target method, so a call to such a method in the applied class
+ * means the hook is in place.
  *
  * <p>This runs very early, so it must not refer to any Minecraft class.
  */
 public class OptimizeServerReplayMixinPlugin implements IMixinConfigPlugin {
 	private static final String HANDLER_PREFIX = "handler$";
+	private static final String REDIRECT_PREFIX = "redirect$";
 	private static final String HANDLER_MARKER = "$osr$on";
 
 	@Override
@@ -53,6 +55,13 @@ public class OptimizeServerReplayMixinPlugin implements IMixinConfigPlugin {
 	public void postApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {
 		String className = targetClassName.substring(targetClassName.lastIndexOf('.') + 1);
 		for (MethodNode method : targetClass.methods) {
+			for (AbstractInsnNode insn = method.instructions.getFirst(); insn != null; insn = insn.getNext()) {
+				if (insn instanceof MethodInsnNode call && isHandlerCall(call, targetClass)) {
+					String handler = call.name.substring(call.name.indexOf(HANDLER_MARKER) + 1);
+					HookStatus.markHandlerApplied(className + "#" + handler);
+				}
+			}
+
 			String hook = hookName(className, method);
 			if (!HookStatus.ALL_HOOKS.contains(hook)) {
 				continue;
@@ -68,7 +77,7 @@ public class OptimizeServerReplayMixinPlugin implements IMixinConfigPlugin {
 
 	private static boolean isHandlerCall(MethodInsnNode call, ClassNode targetClass) {
 		return call.owner.equals(targetClass.name)
-			&& call.name.startsWith(HANDLER_PREFIX)
+			&& (call.name.startsWith(HANDLER_PREFIX) || call.name.startsWith(REDIRECT_PREFIX))
 			&& call.name.contains(HANDLER_MARKER);
 	}
 

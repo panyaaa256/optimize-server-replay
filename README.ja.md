@@ -41,6 +41,7 @@ Optimize Server Replay は、Server Replay と共にサーバーに導入して�
   "ignore_block_action": false,
   "block_update_interval_ticks": 0,
   "optimize_saving": true,
+  "zip_while_recording": false,
   "zip_compression_level": 1
 }
 ```
@@ -52,6 +53,7 @@ Optimize Server Replay は、Server Replay と共にサーバーに導入して�
 | `ignore_block_action` | true / false | `false` | Block Action をすべて記録しません |
 | `block_update_interval_ticks` | 0〜6000 の整数 | `0` | ブロックの変化を、この tick 数ごとにまとめて記録します。`0` ならまとめません |
 | `optimize_saving` | true / false | `true` | 録画の保存を速くします。録画の中身は変わりません（[保存の高速化](#保存の高速化)） |
+| `zip_while_recording` | true / false | `false` | 録画しながら zip にまとめます（[録画しながらの zip 化](#録画しながらの-zip-化)） |
 | `zip_compression_level` | 0〜9 の整数 | `1` | 録画を保存するときの zip の圧縮レベルです。大きいほどファイルは小さくなり、保存に時間がかかります。`0` なら圧縮しません。`1` は Server Replay と同じです |
 
 - 設定は `/replay reload` で読み直せます。読み直した設定は、そのあとに開始した録画から使用されます。録画中のものは、開始したときの設定のままです。
@@ -89,11 +91,22 @@ Server Replay の `config/server-replay/config.json` で、次の設定を合わ
 - 地形のキャッシュを書くたびに、ディスクへの書き込みの完了を待たないようにします。録画のほかのファイルと同じ扱いになります。
 - 録画中にだけ使う `metadata.json.old` を、zip に入れません。
 
+### 録画しながらの zip 化
+
+`zip_while_recording` を `true` にすると、録画しながら、書き終わったファイルから順に zip に入れ、録画フォルダから削除します。対象は、5 分ごとのリプレイチャンクと、いっぱいになった地形のキャッシュです。
+
+- 停止したときに残っているファイルが少ないので、保存がすぐに終わります。
+- 録画中のディスク使用量が、展開した録画と zip の両方を合わせた分から、ほぼ zip の分だけになります。
+- 書き途中の zip は、録画フォルダの中の `osr-partial.zip` です。保存すると `<録画名>.zip` に移ります。
+- 録画中にサーバーが落ちると、録画フォルダには書き途中の zip と残りのファイルが残ります。この mod を入れたまま起動すれば[復旧](#クラッシュ後の録画の復旧)されますが、フォルダを手で zip にするだけでは開けるリプレイになりません。
+- zip に入れられなくなったとき（ディスクがいっぱいなど）は、それ以降のファイルをフォルダに残し、保存のときに、書き途中の zip と合わせて 1 つにまとめます。
+
 ## クラッシュ後の録画の復旧
 
 Server Replay は、録画中にサーバーが落ちた録画を次の起動時に復旧しますが、対象は ReplayMod 形式だけです。この mod を入れると、Flashback 形式の録画（チャンク録画・プレイヤー録画とも）も復旧されます。
 
 - 録画フォルダを、通常の保存と同じ `<録画名>.zip` にまとめ、元のフォルダを削除します。同じ名前の zip がすでにあるときは、`<録画名> (recovered 1).zip` のように別の名前で保存します。
+- `zip_while_recording` で録画していた場合は、書き途中の zip のうち最後まで書けているファイルと、フォルダに残っているファイルを合わせて、1 つの zip にします。
 - 残るのは、最後に区切られたリプレイチャンクまでです。Flashback 形式は 5 分ごとに区切ってディスクに書くため、落ちる直前の最大 5 分は失われます。
 - 区切りが 1 つもない（録画開始から 5 分以内に落ちた）録画や、復旧に失敗した録画は、フォルダをそのまま残します。
 - Server Replay の `"recover_unsaved_replays"` が `false` のときは、復旧しません。

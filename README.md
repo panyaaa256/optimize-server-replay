@@ -41,6 +41,7 @@ The config file is `config/optimize-server-replay/config.json`. If it does not e
   "ignore_block_action": false,
   "block_update_interval_ticks": 0,
   "optimize_saving": true,
+  "zip_while_recording": false,
   "zip_compression_level": 1
 }
 ```
@@ -52,6 +53,7 @@ The config file is `config/optimize-server-replay/config.json`. If it does not e
 | `ignore_block_action` | true / false | `false` | Do not record any block actions |
 | `block_update_interval_ticks` | whole number from 0 to 6000 | `0` | Record block changes together once every this many ticks. `0` records them as they happen |
 | `optimize_saving` | true / false | `true` | Save recordings faster. The content of the recording stays the same (see [Faster saving](#faster-saving)) |
+| `zip_while_recording` | true / false | `false` | Zip a recording while it records (see [Zipping while recording](#zipping-while-recording)) |
 | `zip_compression_level` | whole number from 0 to 9 | `1` | The zip compression level a recording is saved with. A higher level makes the file smaller and the save slower. `0` stores the files without compressing them. `1` is what Server Replay uses |
 
 - `/replay reload` reads the config again. The new settings are used by the recordings that start after that. A recording that is already running keeps the settings it started with.
@@ -89,11 +91,22 @@ With `optimize_saving` at `true`, recordings are saved differently. Apart from t
 - Each chunk of terrain that is cached no longer waits until it is on the disk, just like the other files of the recording.
 - `metadata.json.old`, which is only needed while recording, is left out of the zip.
 
+### Zipping while recording
+
+With `zip_while_recording` at `true`, the files of a recording go into its zip while it records, as soon as they are written, and are deleted from the recording folder. These are the 5 minute replay chunks and the terrain caches that are full.
+
+- Few files are left when the recording stops, so saving is over quickly.
+- While recording, the recording takes about as much disk space as its zip, rather than the unzipped recording and the zip together.
+- The zip that is being written is `osr-partial.zip` in the recording folder. Saving moves it to `<recording name>.zip`.
+- When the server goes down during a recording, the folder holds the unfinished zip and the remaining files. With this mod installed, it is [recovered](#recovering-recordings-after-a-crash) on the next start, but zipping the folder by hand does not make a replay that opens.
+- If the files can no longer go into the zip (for example when the disk is full), the rest stay in the folder, and saving puts them together with the unfinished zip.
+
 ## Recovering recordings after a crash
 
 When the server goes down during a recording, Server Replay recovers it on the next start, but only in the ReplayMod format. With this mod, recordings in the Flashback format (both chunk and player recordings) are recovered too.
 
 - The recording folder is packed into `<recording name>.zip`, as a normal save would, and the folder is deleted. If a zip with that name already exists, the recording is saved under another name, such as `<recording name> (recovered 1).zip`.
+- For a recording made with `zip_while_recording`, the files that were written to the end of the unfinished zip and the files left in the folder are put together into one zip.
 - The recording is kept up to the last replay chunk that was complete. The Flashback format writes to disk in 5 minute chunks, so up to the last 5 minutes before the crash are lost.
 - A recording without a complete chunk (one that crashed within 5 minutes of starting), or one that could not be recovered, is left as a folder.
 - Nothing is recovered when `"recover_unsaved_replays"` is `false` in Server Replay.
