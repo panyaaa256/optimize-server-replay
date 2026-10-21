@@ -52,8 +52,12 @@ public abstract class ReplayRecorderMixin implements RecordingFilterHolder {
 			if (HookStatus.allHooksApplied()) {
 				FilterConfig config = FilterConfig.current();
 				this.osr$filter = new RecordingFilter(recorder, config);
+				FlashbackWriterHolder writer = (FlashbackWriterHolder) this.getWriter();
 				if (config.optimizeSaving()) {
-					((FlashbackWriterHolder) this.getWriter()).osr$skipChunkCacheSync();
+					writer.osr$skipChunkCacheSync();
+				}
+				if (config.zipWhileRecording() && HookStatus.streamingHooksApplied()) {
+					writer.osr$zipWhileRecording(config.zipCompressionLevel());
 				}
 			}
 		} catch (Exception e) {
