@@ -4,6 +4,7 @@
 	"plugin": "com.panyaaa256.optimizeserverreplay.mixin.OptimizeServerReplayMixinPlugin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
+		"FlashbackChunkedWriterMixin",
 		"FlashbackWriterMixin",
 		"RecorderRecovererMixin",
 		"ReplayRecorderMixin",

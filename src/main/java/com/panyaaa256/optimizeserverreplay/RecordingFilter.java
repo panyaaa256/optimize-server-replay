@@ -37,6 +37,10 @@ public final class RecordingFilter {
 		}
 	}
 
+	public FilterConfig config() {
+		return this.config;
+	}
+
 	public boolean shouldRecord(Packet<?> packet) {
 		// The filters keep their state without locks, and the packets they look at are all
 		// sent from the server thread.

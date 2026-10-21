@@ -20,15 +20,19 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.zip.Deflater;
 
 public record FilterConfig(
 	boolean ignoreEntities,
 	Set<EntityType<?>> entityWhitelist,
 	boolean ignoreBlockAction,
-	int blockUpdateIntervalTicks
+	int blockUpdateIntervalTicks,
+	boolean optimizeSaving,
+	int zipCompressionLevel
 ) {
 	/** The length of a Flashback replay chunk, which a batch of block updates cannot outlast. */
 	public static final int MAX_BLOCK_UPDATE_INTERVAL_TICKS = 6000;
+	public static final int MAX_ZIP_COMPRESSION_LEVEL = Deflater.BEST_COMPRESSION;
 
 	public static final FilterConfig DEFAULT = new FilterConfig(
 		false,
@@ -40,7 +44,10 @@ public record FilterConfig(
 			EntityType.GLOW_ITEM_FRAME
 		),
 		false,
-		0
+		0,
+		true,
+		// The level Arcade saves with.
+		Deflater.BEST_SPEED
 	);
 
 	private static volatile FilterConfig current = DEFAULT;
@@ -76,6 +83,8 @@ public record FilterConfig(
 		json.add("entity_whitelist", whitelist);
 		json.addProperty("ignore_block_action", DEFAULT.ignoreBlockAction);
 		json.addProperty("block_update_interval_ticks", DEFAULT.blockUpdateIntervalTicks);
+		json.addProperty("optimize_saving", DEFAULT.optimizeSaving);
+		json.addProperty("zip_compression_level", DEFAULT.zipCompressionLevel);
 		try {
 			Files.createDirectories(file.getParent());
 			Files.writeString(file, new GsonBuilder().setPrettyPrinting().create().toJson(json) + "\n");
@@ -102,7 +111,9 @@ public record FilterConfig(
 			readBoolean(json, "ignore_entities", DEFAULT.ignoreEntities),
 			readWhitelist(json),
 			readBoolean(json, "ignore_block_action", DEFAULT.ignoreBlockAction),
-			readInterval(json)
+			readWholeNumber(json, "block_update_interval_ticks", DEFAULT.blockUpdateIntervalTicks, MAX_BLOCK_UPDATE_INTERVAL_TICKS),
+			readBoolean(json, "optimize_saving", DEFAULT.optimizeSaving),
+			readWholeNumber(json, "zip_compression_level", DEFAULT.zipCompressionLevel, MAX_ZIP_COMPRESSION_LEVEL)
 		);
 	}
 
@@ -119,9 +130,7 @@ public record FilterConfig(
 		return fallback;
 	}
 
-	private static int readInterval(JsonObject json) {
-		String key = "block_update_interval_ticks";
-		int fallback = DEFAULT.blockUpdateIntervalTicks;
+	private static int readWholeNumber(JsonObject json, String key, int fallback, int max) {
 		JsonElement value = json.get(key);
 		if (value == null) {
 			OptimizeServerReplay.LOGGER.warn("The config has no \"{}\", using {}", key, fallback);
@@ -135,10 +144,9 @@ public record FilterConfig(
 					OptimizeServerReplay.LOGGER.warn("\"{}\" must not be negative, using 0", key);
 					return 0;
 				}
-				if (number.compareTo(BigDecimal.valueOf(MAX_BLOCK_UPDATE_INTERVAL_TICKS)) > 0) {
-					OptimizeServerReplay.LOGGER.warn("\"{}\" is above {}, using {}", key,
-						MAX_BLOCK_UPDATE_INTERVAL_TICKS, MAX_BLOCK_UPDATE_INTERVAL_TICKS);
-					return MAX_BLOCK_UPDATE_INTERVAL_TICKS;
+				if (number.compareTo(BigDecimal.valueOf(max)) > 0) {
+					OptimizeServerReplay.LOGGER.warn("\"{}\" is above {}, using {}", key, max, max);
+					return max;
 				}
 				return number.intValue();
 			}
