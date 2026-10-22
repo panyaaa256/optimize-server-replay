@@ -72,6 +72,18 @@ public abstract class ReplayRecorderMixin implements RecordingFilterHolder {
 		}
 	}
 
+	// After Arcade's optimizations and the splitting of bundles, but before its writer turns every
+	// packet away while the recording is paused.
+	@Inject(
+		method = "record",
+		at = @At(value = "INVOKE", target = "Lnet/casual/arcade/replay/io/writer/ReplayWriter;canRecordPacket")
+	)
+	private void osr$onRecord(Packet<?> packet, CallbackInfo ci) {
+		if (this.osr$filter != null) {
+			this.osr$filter.onRecord(packet);
+		}
+	}
+
 	@Inject(method = "tick", at = @At("HEAD"))
 	private void osr$onTick(CallbackInfo ci) {
 		if (this.osr$filter != null) {
@@ -83,6 +95,16 @@ public abstract class ReplayRecorderMixin implements RecordingFilterHolder {
 	@Inject(method = "pause(Z)Z", at = @At("HEAD"))
 	private void osr$onPause(boolean force, CallbackInfoReturnable<Boolean> cir) {
 		this.osr$flushBlockUpdates();
+		if (this.osr$filter != null) {
+			this.osr$filter.onPause();
+		}
+	}
+
+	@Inject(method = "resume", at = @At("HEAD"), cancellable = true)
+	private void osr$onResume(CallbackInfoReturnable<Boolean> cir) {
+		if (this.osr$filter != null && this.osr$filter.onResume()) {
+			cir.setReturnValue(false);
+		}
 	}
 
 	@Inject(method = "stop(Z)Ljava/util/concurrent/CompletableFuture;", at = @At("HEAD"))

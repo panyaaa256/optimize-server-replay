@@ -4,15 +4,19 @@ import com.panyaaa256.optimizeserverreplay.block.BlockActionFilter;
 import com.panyaaa256.optimizeserverreplay.block.BlockUpdateBuffer;
 import com.panyaaa256.optimizeserverreplay.config.FilterConfig;
 import com.panyaaa256.optimizeserverreplay.entity.EntityFilter;
+import com.panyaaa256.optimizeserverreplay.idle.IdleActivity;
+import com.panyaaa256.optimizeserverreplay.idle.IdlePause;
 import net.casual.arcade.replay.recorder.chunk.ReplayChunkRecorder;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundBlockEventPacket;
+import org.jspecify.annotations.Nullable;
 
 public final class RecordingFilter {
 	private final ReplayChunkRecorder recorder;
 	private final FilterConfig config;
 	private final EntityFilter entities;
 	private final BlockUpdateBuffer blockUpdates = new BlockUpdateBuffer();
+	private final @Nullable IdlePause idle;
 
 	private int ticks = 0;
 	// Set while we record the batched block updates, so that we let our own packets through.
@@ -28,6 +32,9 @@ public final class RecordingFilter {
 		this.recorder = recorder;
 		this.config = config;
 		this.entities = new EntityFilter(config.entityWhitelist(), () -> recorder.getDummyPlayer().getId());
+		this.idle = config.pauseWhenIdleSeconds() >= 1 && HookStatus.idleHooksApplied()
+			? new IdlePause(recorder, config.pauseWhenIdleSeconds() * 20)
+			: null;
 
 		if (this.batchesBlockUpdates() && !config.ignoreBlockAction()) {
 			OptimizeServerReplay.LOGGER.info(
@@ -62,15 +69,54 @@ public final class RecordingFilter {
 		}
 	}
 
-	public void tick() {
-		if (!this.batchesBlockUpdates() || this.recorder.getPaused()) {
+	/**
+	 * Called for every packet that is about to be recorded, before Arcade's writer turns it away
+	 * while the recording is paused.
+	 */
+	public void onRecord(Packet<?> packet) {
+		// Our batched block updates were counted when they were taken in.
+		if (this.idle == null || this.flushing || !this.recorder.getServer().isSameThread()) {
 			return;
 		}
 
-		this.ticks++;
-		if (this.ticks % this.config.blockUpdateIntervalTicks() == 0) {
-			this.flushBlockUpdates();
+		try {
+			int dummyId = this.recorder.getDummyPlayer().getId();
+			if (IdleActivity.counts(packet, this.config, this.recorder.getLevel(), dummyId)) {
+				this.idle.onActivity();
+			}
+		} catch (Exception e) {
+			this.reportFailure(e);
 		}
+	}
+
+	public void tick() {
+		if (this.batchesBlockUpdates() && !this.recorder.getPaused()) {
+			this.ticks++;
+			if (this.ticks % this.config.blockUpdateIntervalTicks() == 0) {
+				this.flushBlockUpdates();
+			}
+		}
+
+		if (this.idle != null) {
+			try {
+				this.idle.tick();
+			} catch (Exception e) {
+				this.reportFailure(e);
+			}
+		}
+	}
+
+	public void onPause() {
+		if (this.idle != null) {
+			this.idle.onPause();
+		}
+	}
+
+	/**
+	 * @return whether to cancel the resume, because the recording is paused for being idle
+	 */
+	public boolean onResume() {
+		return this.idle != null && this.idle.onResume();
 	}
 
 	public void flushBlockUpdates() {

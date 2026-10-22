@@ -96,3 +96,30 @@ Optimize Server Replay の各設定が、録画のどのパケットをどう扱
 - 読み込まれていないチャンクの座標
 - その時点のブロックが `minecraft:moving_piston` である座標
 - すでに無くなったブロックエンティティ
+
+## `pause_when_idle_seconds`
+
+1 以上のとき、下のパケットを「変化」として数えます。数えたパケットが指定の秒数来なければ録画を一時停止し、一時停止中に来れば録画を再開します。このパケットの記録のされ方は変わりません。
+
+| パケット | 数える条件 |
+|---|---|
+| `block_update` | 常に |
+| `section_blocks_update` | 常に |
+| `block_entity_data` | 常に |
+| `block_event` | `ignore_block_action` で省かれないもの |
+| `block_destruction` | 常に |
+| `level_event` | 常に |
+| `explode` | 常に |
+| [`ignore_entities` の表](#ignore_entities)にあるエンティティのパケット | 下の条件をすべて満たすエンティティが、1 つでも含まれる |
+
+エンティティを数える条件は次のとおりです。
+
+- `ignore_entities` で省かれない
+- `idle_ignore_entities` が `false` か、種類が `idle_entity_whitelist` にある
+- スペクテイターのプレイヤーではない
+- チャンク録画のダミープレイヤーではない
+- まだワールドにいる（`add_entity` を除き、ワールドからいなくなったエンティティは数えません）
+
+ほかのパケットは数えません。時刻（`set_time`）、天気（`game_event`）、タブリスト、チャット、スコアボード、ボスバー、音、パーティクル、チャンクの読み込み（`level_chunk_with_light`）、明るさの更新（`light_update`）などです。
+
+`block_update_interval_ticks` でまとめているブロックの変化は、まとめて書き出したときではなく、変化したときに数えます。

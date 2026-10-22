@@ -96,3 +96,30 @@ These positions are skipped.
 - Positions in a chunk that is not loaded
 - Positions whose block is `minecraft:moving_piston` at that moment
 - Block entities that no longer exist
+
+## `pause_when_idle_seconds`
+
+When 1 or more, the packets below count as a change. When none of them arrives for the given number of seconds, the recording is paused, and when one arrives while it is paused, the recording resumes. How these packets are recorded does not change.
+
+| Packet | Counts when |
+|---|---|
+| `block_update` | always |
+| `section_blocks_update` | always |
+| `block_entity_data` | always |
+| `block_event` | it is not left out by `ignore_block_action` |
+| `block_destruction` | always |
+| `level_event` | always |
+| `explode` | always |
+| the entity packets in [the `ignore_entities` table](#ignore_entities) | any of its entities meets all of the conditions below |
+
+An entity counts when:
+
+- it is not left out by `ignore_entities`
+- `idle_ignore_entities` is `false`, or its type is in `idle_entity_whitelist`
+- it is not a player in spectator mode
+- it is not the dummy player of the chunk recording
+- it is still in the world (apart from `add_entity`, an entity that has left the world does not count)
+
+No other packet counts, such as the time of day (`set_time`), the weather (`game_event`), the tab list, chat, the scoreboard, boss bars, sounds, particles, chunks that load (`level_chunk_with_light`) and light updates (`light_update`).
+
+Block changes that `block_update_interval_ticks` records together count when they happen, not when they are written out.
