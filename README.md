@@ -146,6 +146,29 @@ On Windows, use `gradlew.bat build` instead of `./gradlew build`.
 
 The mod is built to `build/libs/optimize-server-replay-<version>.jar`.
 
+## Default config
+
+The config that is created when there is no config file (`config/optimize-server-replay/config.json`).
+
+```json
+{
+  "ignore_entities": false,
+  "entity_whitelist": [
+    "minecraft:glow_item_frame",
+    "minecraft:hopper_minecart",
+    "minecraft:item_frame",
+    "minecraft:minecart",
+    "minecraft:player"
+  ],
+  "ignore_block_action": false,
+  "block_update_interval_ticks": 0,
+  "optimize_saving": true,
+  "zip_while_recording": false,
+  "optimize_snapshot": true,
+  "zip_compression_level": 1
+}
+```
+
 ## License
 
 [MIT](LICENSE)
