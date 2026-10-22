@@ -146,6 +146,29 @@ Windows では `./gradlew build` の代わりに `gradlew.bat build` を使っ�
 
 mod は `build/libs/optimize-server-replay-<バージョン>.jar` にビルドされます。
 
+## 初期設定
+
+設定ファイル（`config/optimize-server-replay/config.json`）がないときに作られる、初期設定の内容です。
+
+```json
+{
+  "ignore_entities": false,
+  "entity_whitelist": [
+    "minecraft:glow_item_frame",
+    "minecraft:hopper_minecart",
+    "minecraft:item_frame",
+    "minecraft:minecart",
+    "minecraft:player"
+  ],
+  "ignore_block_action": false,
+  "block_update_interval_ticks": 0,
+  "optimize_saving": true,
+  "zip_while_recording": false,
+  "optimize_snapshot": true,
+  "zip_compression_level": 1
+}
+```
+
 ## ライセンス
 
 [MIT](LICENSE)
