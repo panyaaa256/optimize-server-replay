@@ -42,6 +42,7 @@ The config file is `config/optimize-server-replay/config.json`. If it does not e
   "block_update_interval_ticks": 0,
   "optimize_saving": true,
   "zip_while_recording": false,
+  "optimize_snapshot": true,
   "zip_compression_level": 1
 }
 ```
@@ -54,6 +55,7 @@ The config file is `config/optimize-server-replay/config.json`. If it does not e
 | `block_update_interval_ticks` | whole number from 0 to 6000 | `0` | Record block changes together once every this many ticks. `0` records them as they happen |
 | `optimize_saving` | true / false | `true` | Save recordings faster. The content of the recording stays the same (see [Faster saving](#faster-saving)) |
 | `zip_while_recording` | true / false | `false` | Zip a recording while it records (see [Zipping while recording](#zipping-while-recording)) |
+| `optimize_snapshot` | true / false | `true` | Shorten the time the server stops when a recording starts, and for the snapshot taken every 5 minutes. The content of the recording stays the same (see [Faster snapshots](#faster-snapshots)) |
 | `zip_compression_level` | whole number from 0 to 9 | `1` | The zip compression level a recording is saved with. A higher level makes the file smaller and the save slower. `0` stores the files without compressing them. `1` is what Server Replay uses |
 
 - `/replay reload` reads the config again. The new settings are used by the recordings that start after that. A recording that is already running keeps the settings it started with.
@@ -100,6 +102,17 @@ With `zip_while_recording` at `true`, the files of a recording go into its zip w
 - The zip that is being written is `osr-partial.zip` in the recording folder. Saving moves it to `<recording name>.zip`.
 - When the server goes down during a recording, the folder holds the unfinished zip and the remaining files. With this mod installed, it is [recovered](#recovering-recordings-after-a-crash) on the next start, but zipping the folder by hand does not make a replay that opens.
 - If the files can no longer go into the zip (for example when the disk is full), the rest stay in the folder, and saving puts them together with the unfinished zip.
+
+### Faster snapshots
+
+The Flashback format records the current state (a snapshot) when a recording starts and every 5 minutes. For each of its chunks, Server Replay goes through every entity of the world to find the ones in that chunk, so the more chunks and entities there are, the longer the server stops.
+
+With `optimize_snapshot` at `true`, the entities are sorted into their chunks once, before the chunks are sent. The packets that are recorded, and their order, stay the same.
+
+In a test that recorded 31×31 chunks with 20,000 entities, the server stopped for:
+
+- the snapshot every 5 minutes: about 0.07 seconds instead of about 1.35 seconds
+- the start of the recording: about 0.15 seconds instead of about 2.7 seconds
 
 ## Recovering recordings after a crash
 
