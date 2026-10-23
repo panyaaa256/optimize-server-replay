@@ -74,14 +74,13 @@ public final class RecordingFilter {
 	 * while the recording is paused.
 	 */
 	public void onRecord(Packet<?> packet) {
-		// Our batched block updates were counted when they were taken in.
-		if (this.idle == null || this.flushing || !this.recorder.getServer().isSameThread()) {
+		if (this.idle == null || !this.recorder.getServer().isSameThread()) {
 			return;
 		}
 
 		try {
 			int dummyId = this.recorder.getDummyPlayer().getId();
-			if (IdleActivity.counts(packet, this.config, this.recorder.getLevel(), dummyId)) {
+			if (IdleActivity.counts(packet, this.recorder.getLevel(), dummyId)) {
 				this.idle.onActivity();
 			}
 		} catch (Exception e) {

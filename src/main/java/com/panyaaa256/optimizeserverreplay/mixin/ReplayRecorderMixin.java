@@ -33,6 +33,9 @@ public abstract class ReplayRecorderMixin implements RecordingFilterHolder {
 	private RecordingFilter osr$filter;
 
 	@Shadow
+	private boolean ignore;
+
+	@Shadow
 	protected abstract ReplayWriter getWriter();
 
 	@Inject(method = "<init>", at = @At("TAIL"))
@@ -122,5 +125,16 @@ public abstract class ReplayRecorderMixin implements RecordingFilterHolder {
 	@Override
 	public @Nullable FilterConfig osr$config() {
 		return this.osr$filter == null ? null : this.osr$filter.config();
+	}
+
+	@Override
+	public void osr$withoutRecording(Runnable action) {
+		boolean previous = this.ignore;
+		this.ignore = true;
+		try {
+			action.run();
+		} finally {
+			this.ignore = previous;
+		}
 	}
 }

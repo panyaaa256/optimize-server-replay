@@ -5,7 +5,7 @@ import net.casual.arcade.replay.recorder.chunk.ReplayChunkRecorder;
 
 /**
  * Pauses a recording when nothing has happened in its area for a while, and resumes it when
- * something does.
+ * something does. {@link IdleActivity} decides what counts.
  *
  * <p>Arcade pauses and resumes the recording for reasons of its own too (no players in the area,
  * no chunks loaded, an empty server). While we hold the recording paused, its resumes are
@@ -50,9 +50,9 @@ public final class IdlePause {
 				this.paused = false;
 				this.active = false;
 				// Otherwise the recording stays paused until Arcade resumes it.
-				if (this.arcadeRuns) {
-					this.switchTo(false);
-					OptimizeServerReplay.LOGGER.info("Resumed recording {}: something changed in its area", this.recorder.getName());
+				if (this.arcadeRuns && this.switchTo(false)) {
+					OptimizeServerReplay.LOGGER.info("Resumed recording {}: a block action or a player swing in its area", this.recorder.getName());
+					PauseNotifier.resumed(this.recorder);
 				}
 			}
 			return;
@@ -69,10 +69,11 @@ public final class IdlePause {
 				this.paused = true;
 				this.arcadeRuns = true;
 				OptimizeServerReplay.LOGGER.info(
-					"Paused recording {}: nothing changed in its area for {} seconds",
+					"Paused recording {}: no block action or player swing in its area for {} seconds",
 					this.recorder.getName(),
 					this.idleTicksToPause / 20
 				);
+				PauseNotifier.paused(this.recorder);
 			}
 		}
 	}

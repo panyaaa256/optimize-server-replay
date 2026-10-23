@@ -31,14 +31,14 @@ import net.minecraft.network.protocol.game.ClientboundUpdateMobEffectPacket;
  * their exact class, so the nested classes of {@link ClientboundMoveEntityPacket} are listed
  * on their own.
  */
-public final class EntityPackets {
-	public static final int NOT_ENTITY = -1;
-	public static final int ADD = 0;
-	public static final int REMOVE = 1;
-	public static final int PASSENGERS = 2;
-	public static final int LINK = 3;
-	public static final int TAKE_ITEM = 4;
-	public static final int SINGLE = 5;
+final class EntityPackets {
+	static final int NOT_ENTITY = -1;
+	static final int ADD = 0;
+	static final int REMOVE = 1;
+	static final int PASSENGERS = 2;
+	static final int LINK = 3;
+	static final int TAKE_ITEM = 4;
+	static final int SINGLE = 5;
 
 	private static final Reference2IntOpenHashMap<Class<?>> KINDS = new Reference2IntOpenHashMap<>();
 
@@ -77,11 +77,11 @@ public final class EntityPackets {
 	private EntityPackets() {
 	}
 
-	public static int kindOf(Packet<?> packet) {
+	static int kindOf(Packet<?> packet) {
 		return KINDS.getInt(packet.getClass());
 	}
 
-	public static int singleId(Packet<?> packet) {
+	static int singleId(Packet<?> packet) {
 		return switch (packet) {
 			case ClientboundMoveEntityPacket move -> ((ClientboundMoveEntityPacketAccessor) move).osr$getEntityId();
 			case ClientboundEntityPositionSyncPacket sync -> sync.id();
