@@ -4,6 +4,8 @@ Optimize Server Replay の変更点の日本語版です。リリースノート
 
 ## 未リリース
 
+## 1.4.0 (2026-10-23)
+
 `pause_when_idle_seconds` で録画を続けさせるものを、Block Action とプレイヤーの腕振りだけにしました。`idle_ignore_entities` と `idle_entity_whitelist` は使われなくなったので、`config.json` から消して構いません。
 
 ### 追加
