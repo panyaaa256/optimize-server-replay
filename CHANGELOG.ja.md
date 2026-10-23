@@ -8,7 +8,7 @@ Optimize Server Replay の変更点の日本語版です。リリースノート
 
 `pause_when_idle_seconds` の時間何も起きていない録画を、Server Replay が再開しようとしても止めたままにして、無駄なスナップショットを取らないようにしました。
 
-- Server Replay が録画を一時停止しているあいだ（範囲のプレイヤーが全員スペクテイターのときなど）も、`pause_when_idle_seconds` の時間を数えるようにしました。その時間に達していれば、Server Replay が再開しようとしても、Block Action か腕振りがあるまで止めたままにします。これまでは、いったん再開してスナップショットを取り直し、その時間が経ってからまた一時停止していました
+- Server Replay が録画を一時停止しているあいだ（範囲のプレイヤーが全員スペクテイターのときなど）も、`pause_when_idle_seconds` の時間を数えるようにしました。その時間に達していれば、Server Replay が再開しようとしても、Block Action か腕振りがあるまで止めたままにします。これまでは、いったん再開してスナップショットを取り直し、その時間が経ってからまた一時停止していました（[#10](https://github.com/panyaaa256/optimize-server-replay/pull/10)）
 
 ## 1.4.0 (2026-10-23)
 
