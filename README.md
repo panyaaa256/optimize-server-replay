@@ -10,6 +10,8 @@ An addon for [Server Replay](https://github.com/senseiwells/ServerReplay) that r
 - Block actions, such as a piston extending or a chest opening
 - Block change packets, by recording them together once every given number of ticks (the interval is adjustable)
 
+A recording can also be paused when nothing changes in its area for a while.
+
 Every feature is off by default. Turn on the ones you want in the [config](#configuration).
 
 The mod only applies to **chunk recordings in the Flashback format**. It does not work for chunk recordings in the ReplayMod format, or for player recordings (`/replay start players`).
@@ -43,7 +45,12 @@ The config file is `config/optimize-server-replay/config.json`. If it does not e
   "optimize_saving": true,
   "zip_while_recording": false,
   "optimize_snapshot": true,
-  "zip_compression_level": 1
+  "zip_compression_level": 1,
+  "pause_when_idle_seconds": 0,
+  "idle_ignore_entities": true,
+  "idle_entity_whitelist": [
+    "minecraft:player"
+  ]
 }
 ```
 
@@ -57,6 +64,9 @@ The config file is `config/optimize-server-replay/config.json`. If it does not e
 | `zip_while_recording` | true / false | `false` | Zip a recording while it records (see [Zipping while recording](#zipping-while-recording)) |
 | `optimize_snapshot` | true / false | `true` | Shorten the time the server stops when a recording starts, and for the snapshot taken every 5 minutes. The content of the recording stays the same (see [Faster snapshots](#faster-snapshots)) |
 | `zip_compression_level` | whole number from 0 to 9 | `1` | The zip compression level a recording is saved with. A higher level makes the file smaller and the save slower. `0` stores the files without compressing them. `1` is what Server Replay uses |
+| `pause_when_idle_seconds` | whole number from 0 to 86400 | `0` | Pause a recording when the blocks and entities in its area have not changed for this many seconds. `0` never pauses it (see [Pausing when nothing changes](#pausing-when-nothing-changes)) |
+| `idle_ignore_entities` | true / false | `true` | Do not count the changes of entities for `pause_when_idle_seconds`. The types in `idle_entity_whitelist` still count |
+| `idle_entity_whitelist` | array of entity ids | `["minecraft:player"]` | The entity types whose changes still count while `idle_ignore_entities` is `true` |
 
 - `/replay reload` reads the config again. The new settings are used by the recordings that start after that. A recording that is already running keeps the settings it started with.
 - When a value has the wrong type, a key is missing, or the file is not valid JSON, the mod logs a warning and uses the default. It never rewrites your config file.
@@ -114,6 +124,22 @@ In a test that recorded 31×31 chunks with 20,000 entities, the server stopped f
 - the snapshot every 5 minutes: about 0.07 seconds instead of about 1.35 seconds
 - the start of the recording: about 0.15 seconds instead of about 2.7 seconds
 
+### Pausing when nothing changes
+
+With `pause_when_idle_seconds` at 1 or more, a recording is paused when the blocks and entities in its area have not changed for that many seconds. As soon as something changes, it resumes on the next tick. The time it was paused for is skipped in the replay.
+
+Even with `chunk_recording_strategy` at `chunk_contains_non_spectator_player` in Server Replay, a recording keeps going while a player in survival mode is left idle in its area. With this setting, such stretches where nothing happens are left out of the recording. While a machine in the area is running, the recording keeps going even if the player is idle.
+
+- Block changes (including block actions, the cracks on a block that is being mined, and explosions) and changes of entities count. The time of day, the weather, the tab list, chat, sounds, particles and chunks that load do not. See [docs/packets.md](docs/packets.md#pause_when_idle_seconds) for the full list.
+- What `ignore_entities` and `ignore_block_action` leave out of the recording does not count.
+- With `idle_ignore_entities` at `true` (the default), only the entity types in `idle_entity_whitelist` count. By default that is only players, so mobs that just wander around do not keep the recording going. If you want to record a machine that runs on entities alone, such as a mob farm, while you are idle, add its mobs (for example `minecraft:zombified_piglin`) to the list.
+- Players in spectator mode never count, whatever the list says.
+- When a recording resumes, the Flashback format takes a new snapshot. Each resume therefore stops the server for as long as [the snapshot every 5 minutes](#faster-snapshots) does, and adds to the terrain caches. Avoid values of a few seconds; 30 seconds or more is recommended.
+- The change that resumes a recording is not recorded itself. The state after it is in the snapshot that is taken when the recording resumes, so a short movement, such as a piston moving, or a sound is missing.
+- The time of day and the weather jump ahead, by the time the recording was paused for, where it resumes.
+- While Server Replay keeps a recording paused for a reason of its own (no players in the area, no chunks loaded, an empty server), that reason wins. The other way around, while this setting keeps a recording paused, it does not resume until something changes, even when the conditions of Server Replay are met.
+- The pauses and resumes of this setting are logged on the server. They do not send the notifications of `pause_notify_players` in Server Replay.
+
 ## Recovering recordings after a crash
 
 When the server goes down during a recording, Server Replay recovers it on the next start, but only in the ReplayMod format. With this mod, recordings in the Flashback format (both chunk and player recordings) are recovered too.
@@ -165,7 +191,12 @@ The config that is created when there is no config file (`config/optimize-server
   "optimize_saving": true,
   "zip_while_recording": false,
   "optimize_snapshot": true,
-  "zip_compression_level": 1
+  "zip_compression_level": 1,
+  "pause_when_idle_seconds": 0,
+  "idle_ignore_entities": true,
+  "idle_entity_whitelist": [
+    "minecraft:player"
+  ]
 }
 ```
 

@@ -30,11 +30,15 @@ public record FilterConfig(
 	boolean optimizeSaving,
 	boolean zipWhileRecording,
 	boolean optimizeSnapshot,
-	int zipCompressionLevel
+	int zipCompressionLevel,
+	int pauseWhenIdleSeconds,
+	boolean idleIgnoreEntities,
+	Set<EntityType<?>> idleEntityWhitelist
 ) {
 	/** The length of a Flashback replay chunk, which a batch of block updates cannot outlast. */
 	public static final int MAX_BLOCK_UPDATE_INTERVAL_TICKS = 6000;
 	public static final int MAX_ZIP_COMPRESSION_LEVEL = Deflater.BEST_COMPRESSION;
+	public static final int MAX_PAUSE_WHEN_IDLE_SECONDS = 24 * 60 * 60;
 
 	public static final FilterConfig DEFAULT = new FilterConfig(
 		false,
@@ -51,7 +55,10 @@ public record FilterConfig(
 		false,
 		true,
 		// The level Arcade saves with.
-		Deflater.BEST_SPEED
+		Deflater.BEST_SPEED,
+		0,
+		true,
+		Set.of(EntityType.PLAYER)
 	);
 
 	private static volatile FilterConfig current = DEFAULT;
@@ -79,18 +86,16 @@ public record FilterConfig(
 	private static void writeDefault(Path file) {
 		JsonObject json = new JsonObject();
 		json.addProperty("ignore_entities", DEFAULT.ignoreEntities);
-		JsonArray whitelist = new JsonArray();
-		// Set.of has no stable order, so write the ids in the order of the registry.
-		BuiltInRegistries.ENTITY_TYPE.stream()
-			.filter(DEFAULT.entityWhitelist::contains)
-			.forEach(type -> whitelist.add(BuiltInRegistries.ENTITY_TYPE.getKey(type).toString()));
-		json.add("entity_whitelist", whitelist);
+		json.add("entity_whitelist", toJson(DEFAULT.entityWhitelist));
 		json.addProperty("ignore_block_action", DEFAULT.ignoreBlockAction);
 		json.addProperty("block_update_interval_ticks", DEFAULT.blockUpdateIntervalTicks);
 		json.addProperty("optimize_saving", DEFAULT.optimizeSaving);
 		json.addProperty("zip_while_recording", DEFAULT.zipWhileRecording);
 		json.addProperty("optimize_snapshot", DEFAULT.optimizeSnapshot);
 		json.addProperty("zip_compression_level", DEFAULT.zipCompressionLevel);
+		json.addProperty("pause_when_idle_seconds", DEFAULT.pauseWhenIdleSeconds);
+		json.addProperty("idle_ignore_entities", DEFAULT.idleIgnoreEntities);
+		json.add("idle_entity_whitelist", toJson(DEFAULT.idleEntityWhitelist));
 		try {
 			Files.createDirectories(file.getParent());
 			Files.writeString(file, new GsonBuilder().setPrettyPrinting().create().toJson(json) + "\n");
@@ -115,13 +120,16 @@ public record FilterConfig(
 		JsonObject json = root.getAsJsonObject();
 		return new FilterConfig(
 			readBoolean(json, "ignore_entities", DEFAULT.ignoreEntities),
-			readWhitelist(json),
+			readEntityTypes(json, "entity_whitelist", DEFAULT.entityWhitelist),
 			readBoolean(json, "ignore_block_action", DEFAULT.ignoreBlockAction),
 			readWholeNumber(json, "block_update_interval_ticks", DEFAULT.blockUpdateIntervalTicks, MAX_BLOCK_UPDATE_INTERVAL_TICKS),
 			readBoolean(json, "optimize_saving", DEFAULT.optimizeSaving),
 			readBoolean(json, "zip_while_recording", DEFAULT.zipWhileRecording),
 			readBoolean(json, "optimize_snapshot", DEFAULT.optimizeSnapshot),
-			readWholeNumber(json, "zip_compression_level", DEFAULT.zipCompressionLevel, MAX_ZIP_COMPRESSION_LEVEL)
+			readWholeNumber(json, "zip_compression_level", DEFAULT.zipCompressionLevel, MAX_ZIP_COMPRESSION_LEVEL),
+			readWholeNumber(json, "pause_when_idle_seconds", DEFAULT.pauseWhenIdleSeconds, MAX_PAUSE_WHEN_IDLE_SECONDS),
+			readBoolean(json, "idle_ignore_entities", DEFAULT.idleIgnoreEntities),
+			readEntityTypes(json, "idle_entity_whitelist", DEFAULT.idleEntityWhitelist)
 		);
 	}
 
@@ -163,16 +171,24 @@ public record FilterConfig(
 		return fallback;
 	}
 
-	private static Set<EntityType<?>> readWhitelist(JsonObject json) {
-		String key = "entity_whitelist";
+	// Set.of has no stable order, so the ids are written in the order of the registry.
+	private static JsonArray toJson(Set<EntityType<?>> types) {
+		JsonArray array = new JsonArray();
+		BuiltInRegistries.ENTITY_TYPE.stream()
+			.filter(types::contains)
+			.forEach(type -> array.add(BuiltInRegistries.ENTITY_TYPE.getKey(type).toString()));
+		return array;
+	}
+
+	private static Set<EntityType<?>> readEntityTypes(JsonObject json, String key, Set<EntityType<?>> fallback) {
 		JsonElement value = json.get(key);
 		if (value == null) {
 			OptimizeServerReplay.LOGGER.warn("The config has no \"{}\", using the default list", key);
-			return DEFAULT.entityWhitelist;
+			return fallback;
 		}
 		if (!value.isJsonArray()) {
 			OptimizeServerReplay.LOGGER.warn("\"{}\" must be an array of entity ids, using the default list", key);
-			return DEFAULT.entityWhitelist;
+			return fallback;
 		}
 		Set<EntityType<?>> types = new LinkedHashSet<>();
 		for (JsonElement element : value.getAsJsonArray()) {

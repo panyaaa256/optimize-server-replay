@@ -46,6 +46,14 @@ public final class HookStatus {
 		"osr$onRemoveEntity"
 	);
 
+	/**
+	 * The hooks that {@code pause_when_idle_seconds} needs, by the name of their handler.
+	 */
+	public static final Set<String> IDLE_HOOKS = Set.of(
+		"ReplayRecorder#osr$onRecord",
+		"ReplayRecorder#osr$onResume"
+	);
+
 	private static final Logger LOGGER = LoggerFactory.getLogger("optimize-server-replay");
 
 	private static final Set<String> APPLIED = ConcurrentHashMap.newKeySet();
@@ -53,6 +61,7 @@ public final class HookStatus {
 	private static final Set<String> APPLIED_HANDLERS = ConcurrentHashMap.newKeySet();
 	private static final AtomicBoolean WARNED_STREAMING = new AtomicBoolean();
 	private static final AtomicBoolean WARNED_SNAPSHOT = new AtomicBoolean();
+	private static final AtomicBoolean WARNED_IDLE = new AtomicBoolean();
 
 	private HookStatus() {
 	}
@@ -103,6 +112,27 @@ public final class HookStatus {
 			LOGGER.warn(
 				"optimize_snapshot is turned off: the installed Server Replay / Arcade versions do not match, "
 					+ "so these hooks were not applied: {}. Snapshots are taken the usual way.",
+				missing
+			);
+		}
+		return false;
+	}
+
+	/**
+	 * Without the hook on record, nothing would resume a recording that was paused for being idle,
+	 * and without the one on resume, Arcade would resume it right away.
+	 */
+	public static boolean idleHooksApplied() {
+		if (APPLIED_HANDLERS.containsAll(IDLE_HOOKS)) {
+			return true;
+		}
+
+		if (WARNED_IDLE.compareAndSet(false, true)) {
+			Set<String> missing = new TreeSet<>(IDLE_HOOKS);
+			missing.removeAll(APPLIED_HANDLERS);
+			LOGGER.warn(
+				"pause_when_idle_seconds is turned off: the installed Server Replay / Arcade versions do not match, "
+					+ "so these hooks were not applied: {}. Recordings are not paused for being idle.",
 				missing
 			);
 		}
