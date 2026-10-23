@@ -4,6 +4,8 @@ Optimize Server Replay の変更点の日本語版です。リリースノート
 
 ## 未リリース
 
+- `pause_when_idle_seconds` を使っているとき、`idle_entity_whitelist` に無いコウモリなどのせいで、録画が一時停止しなかったり再開したりする問題を修正。バニラでエンティティだけが出す Level Event（コウモリが飛び立つときなど）を、変化として数えないようにしました。一覧は [docs/packets.ja.md](docs/packets.ja.md#エンティティだけが出す-level_event) にあります
+
 ## 1.3.0 (2026-10-23)
 
 Flashback 形式のチャンク録画を、範囲で何も変化しない時間が続いたら一時停止できるようにしました。今の `config.json` には新しいキーがないため、キーを足すまでは、キーごとに警告をログに出して初期値（無効）を使います。
