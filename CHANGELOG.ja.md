@@ -6,7 +6,7 @@ Optimize Server Replay の変更点の日本語版です。リリースノート
 
 ## 1.3.1 (2026-10-23)
 
-- `pause_when_idle_seconds` を使っているとき、`idle_entity_whitelist` に無いコウモリなどのせいで、録画が一時停止しなかったり再開したりする問題を修正。バニラでエンティティだけが出す Level Event（コウモリが飛び立つときなど）を、変化として数えないようにしました。一覧は [docs/packets.ja.md](docs/packets.ja.md#エンティティだけが出す-level_event) にあります
+- `pause_when_idle_seconds` を使っているとき、`idle_entity_whitelist` に無いコウモリなどのせいで、録画が一時停止しなかったり再開したりする問題を修正。バニラでエンティティだけが出す Level Event（コウモリが飛び立つときなど）を、変化として数えないようにしました。一覧は [docs/packets.ja.md](docs/packets.ja.md#エンティティだけが出す-level_event) にあります（[#8](https://github.com/panyaaa256/optimize-server-replay/pull/8)）
 
 ## 1.3.0 (2026-10-23)
 
