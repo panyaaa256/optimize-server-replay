@@ -1,3 +1,11 @@
-Fixes entities that `idle_entity_whitelist` leaves out keeping a recording from pausing with `pause_when_idle_seconds`.
+Changes what keeps a recording going with `pause_when_idle_seconds`: only block actions and the arm swings of players count now. `idle_ignore_entities` and `idle_entity_whitelist` are no longer used, so you can delete them from your `config.json`.
 
-- Fix bats and some other entities keeping a recording from pausing, or resuming it, even when they are not in `idle_entity_whitelist`. The level events that only entities send in vanilla, such as a bat taking off, no longer count as a change. See [docs/packets.md](docs/packets.md#level_event-that-only-entities-send) for the list ([#8](https://github.com/panyaaa256/optimize-server-replay/pull/8))
+### Added
+- Tell everyone when `pause_when_idle_seconds` pauses or resumes a recording, with the same messages as Server Replay, while `pause_notify_players` is on in Server Replay
+
+### Changed
+- Count only block actions (pistons, note blocks, chests, bells and so on, apart from spawners and end gateways) and the arm swings of players as activity for `pause_when_idle_seconds`. Block changes, the movement of entities and level events no longer count, so sheep eating grass, crops growing and players who only walk around no longer keep a recording going. Neither do players who stand still, whose position the server sends every 3 seconds
+- Count block actions and arm swings even when `ignore_block_action`, `block_update_interval_ticks` or `ignore_entities` leave them out of the recording
+
+### Removed
+- Remove `idle_ignore_entities` and `idle_entity_whitelist`

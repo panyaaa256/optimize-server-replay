@@ -31,9 +31,7 @@ public record FilterConfig(
 	boolean zipWhileRecording,
 	boolean optimizeSnapshot,
 	int zipCompressionLevel,
-	int pauseWhenIdleSeconds,
-	boolean idleIgnoreEntities,
-	Set<EntityType<?>> idleEntityWhitelist
+	int pauseWhenIdleSeconds
 ) {
 	/** The length of a Flashback replay chunk, which a batch of block updates cannot outlast. */
 	public static final int MAX_BLOCK_UPDATE_INTERVAL_TICKS = 6000;
@@ -56,9 +54,7 @@ public record FilterConfig(
 		true,
 		// The level Arcade saves with.
 		Deflater.BEST_SPEED,
-		0,
-		true,
-		Set.of(EntityType.PLAYER)
+		0
 	);
 
 	private static volatile FilterConfig current = DEFAULT;
@@ -94,8 +90,6 @@ public record FilterConfig(
 		json.addProperty("optimize_snapshot", DEFAULT.optimizeSnapshot);
 		json.addProperty("zip_compression_level", DEFAULT.zipCompressionLevel);
 		json.addProperty("pause_when_idle_seconds", DEFAULT.pauseWhenIdleSeconds);
-		json.addProperty("idle_ignore_entities", DEFAULT.idleIgnoreEntities);
-		json.add("idle_entity_whitelist", toJson(DEFAULT.idleEntityWhitelist));
 		try {
 			Files.createDirectories(file.getParent());
 			Files.writeString(file, new GsonBuilder().setPrettyPrinting().create().toJson(json) + "\n");
@@ -127,9 +121,7 @@ public record FilterConfig(
 			readBoolean(json, "zip_while_recording", DEFAULT.zipWhileRecording),
 			readBoolean(json, "optimize_snapshot", DEFAULT.optimizeSnapshot),
 			readWholeNumber(json, "zip_compression_level", DEFAULT.zipCompressionLevel, MAX_ZIP_COMPRESSION_LEVEL),
-			readWholeNumber(json, "pause_when_idle_seconds", DEFAULT.pauseWhenIdleSeconds, MAX_PAUSE_WHEN_IDLE_SECONDS),
-			readBoolean(json, "idle_ignore_entities", DEFAULT.idleIgnoreEntities),
-			readEntityTypes(json, "idle_entity_whitelist", DEFAULT.idleEntityWhitelist)
+			readWholeNumber(json, "pause_when_idle_seconds", DEFAULT.pauseWhenIdleSeconds, MAX_PAUSE_WHEN_IDLE_SECONDS)
 		);
 	}
 

@@ -46,11 +46,7 @@ Optimize Server Replay は、Server Replay と共にサーバーに導入して�
   "zip_while_recording": false,
   "optimize_snapshot": true,
   "zip_compression_level": 1,
-  "pause_when_idle_seconds": 0,
-  "idle_ignore_entities": true,
-  "idle_entity_whitelist": [
-    "minecraft:player"
-  ]
+  "pause_when_idle_seconds": 0
 }
 ```
 
@@ -64,9 +60,7 @@ Optimize Server Replay は、Server Replay と共にサーバーに導入して�
 | `zip_while_recording` | true / false | `false` | 録画しながら zip にまとめます（[録画しながらの zip 化](#録画しながらの-zip-化)） |
 | `optimize_snapshot` | true / false | `true` | 録画の開始時と 5 分ごとのスナップショットで、サーバーが止まる時間を短くします。録画の中身は変わりません（[スナップショットの高速化](#スナップショットの高速化)） |
 | `zip_compression_level` | 0〜9 の整数 | `1` | 録画を保存するときの zip の圧縮レベルです。大きいほどファイルは小さくなり、保存に時間がかかります。`0` なら圧縮しません。`1` は Server Replay と同じです |
-| `pause_when_idle_seconds` | 0〜86400 の整数 | `0` | 録画範囲のブロックとエンティティがこの秒数変化しなかったら、録画を一時停止します。`0` なら一時停止しません（[変化がないときの一時停止](#変化がないときの一時停止)） |
-| `idle_ignore_entities` | true / false | `true` | `pause_when_idle_seconds` で、エンティティの変化を数えません。`idle_entity_whitelist` の種類は数えます |
-| `idle_entity_whitelist` | エンティティ ID の配列 | `["minecraft:player"]` | `idle_ignore_entities` が `true` のときでも、変化として数えるエンティティの種類です |
+| `pause_when_idle_seconds` | 0〜86400 の整数 | `0` | 録画範囲で Block Action とプレイヤーの腕振りがこの秒数なかったら、録画を一時停止します。`0` なら一時停止しません（[変化がないときの一時停止](#変化がないときの一時停止)） |
 
 - 設定は `/replay reload` で読み直せます。読み直した設定は、そのあとに開始した録画から使用されます。録画中のものは、開始したときの設定のままです。
 - 値の型が違う、キーが足りない、ファイルが JSON として読めない、といった場合は、警告をログに出して初期値を使います。設定ファイルが書き換えられることはありません。
@@ -126,19 +120,30 @@ Flashback 形式は、録画の開始時と 5 分ごとに、その時点の状�
 
 ### 変化がないときの一時停止
 
-`pause_when_idle_seconds` を 1 以上にすると、録画範囲のブロックとエンティティがその秒数変化しなかったときに、録画を一時停止します。何かが変化すると、次の tick で再開します。一時停止していた時間は、リプレイでは飛ばされます。
+> [!WARNING]
+> 録画を続けさせ、一時停止中の録画を再開させるのは、Block Action とプレイヤーの腕振りだけです。次のものだけが起きているときは、録画は一時停止します。一時停止中に起きても再開しないので、その間の出来事はリプレイに残りません。
+>
+> - ピストンを使わない装置（ホッパーの仕分け機、レッドストーンのクロック、ランプ、ディスペンサー、クラフターなど）
+> - TNT やクリーパーの爆発、火の延焼、水や溶岩の流れ
+> - モブトラップや村人の畑仕事など、エンティティだけで動くもの
+> - 羊が草を食べる、作物や木が育つ、コウモリが飛ぶ、といった自然に起きる変化
+> - 腕を振らないプレイヤーの操作（移動、GUI の中の操作、食べる、弓を撃つ、チャット、コマンドなど）
+>
+> 数えるパケットと数えないパケットの一覧は [docs/packets.ja.md](docs/packets.ja.md#pause_when_idle_seconds) にあります。
 
-Server Replay の `chunk_recording_strategy` を `chunk_contains_non_spectator_player` にしていても、範囲内にサバイバルのプレイヤーが放置されていると、録画は止まりません。この設定を使うと、そうした何も起きていない時間を録画から除けます。範囲内の装置が動いているあいだは、放置していても録画が続きます。
+`pause_when_idle_seconds` を 1 以上にすると、録画範囲で Block Action とプレイヤーの腕振りがその秒数なかったときに、録画を一時停止します。どちらかが起きると、次の tick で再開します。一時停止していた時間は、リプレイでは飛ばされます。
 
-- 変化として数えるのは、ブロックの変化（Block Action、掘っている途中のひび割れ、爆発なども含む）と、エンティティの変化です。時刻、天気、タブリスト、チャット、音、パーティクル、チャンクの読み込みは数えません。コウモリが飛び立つときの音のように、エンティティだけが出す Level Event も数えません。一覧は [docs/packets.ja.md](docs/packets.ja.md#pause_when_idle_seconds) にあります。
-- `ignore_entities` や `ignore_block_action` で録画から省いたものは数えません。
-- `idle_ignore_entities` が `true`（初期値）のときは、エンティティは `idle_entity_whitelist` の種類だけを数えます。初期値ではプレイヤーだけなので、モブがうろついているだけなら一時停止します。モブトラップのようにエンティティだけで動く装置を、放置して録画したいときは、そのモブ（例：`minecraft:zombified_piglin`）をリストに足してください。
-- スペクテイターのプレイヤーは、リストに関係なく数えません。
-- 再開すると、Flashback 形式はスナップショットを取り直します。そのため再開のたびに、[5 分ごとのスナップショット](#スナップショットの高速化)と同じだけサーバーが止まり、地形のキャッシュも増えます。数秒のような短い値は避けて、30 秒以上にすることをおすすめします。
-- 再開のきっかけになった変化そのものは記録されず、変化した後の状態が、再開時のスナップショットに入ります。ピストンの動きや音のような一瞬のものは、その分だけ欠けます。
+Server Replay の `chunk_recording_strategy` を `chunk_contains_non_spectator_player` にしていても、範囲内にサバイバルのプレイヤーが放置されていると、録画は止まりません。この設定を使うと、そうした何も起きていない時間を録画から除けます。
+
+- Block Action は、ピストンの伸縮、音符ブロック、チェスト・エンダーチェスト・シュルカーボックスの開閉、ベル、飾り壺が出します。ピストンを使った装置が範囲内で動いているあいだは、放置していても録画が続きます。スポナーとエンドゲートウェイの Block Action は、何もしなくても繰り返し出るので数えません。
+- プレイヤーの腕振りは、ブロックを置く・掘る、殴る、アイテムを使うときに出ます。歩く、走る、見回すだけでは出ないので、移動しているだけなら一時停止します。スペクテイターのプレイヤーは数えません。
+- `ignore_block_action` や `block_update_interval_ticks` で録画から省いた Block Action も、`ignore_entities` で録画から省いたプレイヤーの腕振りも数えます。
+- carpet のボットに `/player ... attack` や `/player ... use` を続けさせていると、ボットが腕を振り続けるので、録画は一時停止しません。
+- 再開すると、Flashback 形式はスナップショットを取り直します。そのため再開のたびに、[5 分ごとのスナップショット](#スナップショットの高速化)と同じだけサーバーが止まり、地形のキャッシュも増えます。装置が動く合間に止まってはすぐ再開する、ということが起きないよう、1〜2 分程度にすることをおすすめします。
+- 再開のきっかけになった Block Action や腕振りそのものは記録されません。一時停止中に起きたことは、結果だけが再開時のスナップショットに入ります。ピストンが止まった後に水が引いていく様子なども、一時停止した後の分は欠けます。
 - 時刻と天気は、一時停止していた分だけ、再開したところで一度に進みます。
-- Server Replay が、プレイヤーがいない、チャンクが読み込まれていない、サーバーが無人、といった理由で一時停止しているあいだは、そちらに従います。逆に、この設定で一時停止しているあいだは、Server Replay の条件がそろっても、何かが変化するまで再開しません。
-- この設定による一時停止と再開はサーバーのログに出ます。Server Replay の `pause_notify_players` による通知は出ません。
+- Server Replay が、プレイヤーがいない、チャンクが読み込まれていない、サーバーが無人、といった理由で一時停止しているあいだは、そちらに従います。逆に、この設定で一時停止しているあいだは、Server Replay の条件がそろっても、Block Action か腕振りがあるまで再開しません。
+- この設定による一時停止と再開はサーバーのログに出ます。Server Replay の `pause_notify_players` が `true` なら、Server Replay 自身が一時停止・再開したときと同じく、全プレイヤーに `Paused recording for <録画名>` と `Resumed recording for <録画名>` を送ります。この通知は録画には入りません。
 
 ## クラッシュ後の録画の復旧
 
@@ -192,11 +197,7 @@ mod は `build/libs/optimize-server-replay-<バージョン>.jar` にビルド�
   "zip_while_recording": false,
   "optimize_snapshot": true,
   "zip_compression_level": 1,
-  "pause_when_idle_seconds": 0,
-  "idle_ignore_entities": true,
-  "idle_entity_whitelist": [
-    "minecraft:player"
-  ]
+  "pause_when_idle_seconds": 0
 }
 ```
 

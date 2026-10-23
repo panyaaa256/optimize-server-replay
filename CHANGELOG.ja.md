@@ -4,6 +4,18 @@ Optimize Server Replay の変更点の日本語版です。リリースノート
 
 ## 未リリース
 
+`pause_when_idle_seconds` で録画を続けさせるものを、Block Action とプレイヤーの腕振りだけにしました。`idle_ignore_entities` と `idle_entity_whitelist` は使われなくなったので、`config.json` から消して構いません。
+
+### 追加
+- `pause_when_idle_seconds` で一時停止・再開したときに、Server Replay と同じ文言で全プレイヤーに知らせるようにしました。Server Replay の `pause_notify_players` が `true` のときだけです
+
+### 変更
+- `pause_when_idle_seconds` で変化として数えるものを、Block Action（ピストン、音符ブロック、チェスト、ベルなど。スポナーとエンドゲートウェイを除く）とプレイヤーの腕振りだけにしました。ブロックの変化、エンティティの動き、Level Event は数えません。羊が草を食べる、作物が育つ、プレイヤーが歩き回るだけ、といったことで録画が続かなくなります。サーバーが 3 秒ごとに位置を送るため、立ち止まっているプレイヤーも録画を続けさせていましたが、これもなくなります
+- `ignore_block_action`、`block_update_interval_ticks`、`ignore_entities` で録画から省いた Block Action と腕振りも数えるようにしました
+
+### 削除
+- `idle_ignore_entities` と `idle_entity_whitelist` を削除
+
 ## 1.3.1 (2026-10-23)
 
 - `pause_when_idle_seconds` を使っているとき、`idle_entity_whitelist` に無いコウモリなどのせいで、録画が一時停止しなかったり再開したりする問題を修正。バニラでエンティティだけが出す Level Event（コウモリが飛び立つときなど）を、変化として数えないようにしました。一覧は [docs/packets.ja.md](docs/packets.ja.md#エンティティだけが出す-level_event) にあります（[#8](https://github.com/panyaaa256/optimize-server-replay/pull/8)）

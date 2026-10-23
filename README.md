@@ -46,11 +46,7 @@ The config file is `config/optimize-server-replay/config.json`. If it does not e
   "zip_while_recording": false,
   "optimize_snapshot": true,
   "zip_compression_level": 1,
-  "pause_when_idle_seconds": 0,
-  "idle_ignore_entities": true,
-  "idle_entity_whitelist": [
-    "minecraft:player"
-  ]
+  "pause_when_idle_seconds": 0
 }
 ```
 
@@ -64,9 +60,7 @@ The config file is `config/optimize-server-replay/config.json`. If it does not e
 | `zip_while_recording` | true / false | `false` | Zip a recording while it records (see [Zipping while recording](#zipping-while-recording)) |
 | `optimize_snapshot` | true / false | `true` | Shorten the time the server stops when a recording starts, and for the snapshot taken every 5 minutes. The content of the recording stays the same (see [Faster snapshots](#faster-snapshots)) |
 | `zip_compression_level` | whole number from 0 to 9 | `1` | The zip compression level a recording is saved with. A higher level makes the file smaller and the save slower. `0` stores the files without compressing them. `1` is what Server Replay uses |
-| `pause_when_idle_seconds` | whole number from 0 to 86400 | `0` | Pause a recording when the blocks and entities in its area have not changed for this many seconds. `0` never pauses it (see [Pausing when nothing changes](#pausing-when-nothing-changes)) |
-| `idle_ignore_entities` | true / false | `true` | Do not count the changes of entities for `pause_when_idle_seconds`. The types in `idle_entity_whitelist` still count |
-| `idle_entity_whitelist` | array of entity ids | `["minecraft:player"]` | The entity types whose changes still count while `idle_ignore_entities` is `true` |
+| `pause_when_idle_seconds` | whole number from 0 to 86400 | `0` | Pause a recording when its area has had no block action and no arm swing of a player for this many seconds. `0` never pauses it (see [Pausing when nothing changes](#pausing-when-nothing-changes)) |
 
 - `/replay reload` reads the config again. The new settings are used by the recordings that start after that. A recording that is already running keeps the settings it started with.
 - When a value has the wrong type, a key is missing, or the file is not valid JSON, the mod logs a warning and uses the default. It never rewrites your config file.
@@ -126,19 +120,30 @@ In a test that recorded 31×31 chunks with 20,000 entities, the server stopped f
 
 ### Pausing when nothing changes
 
-With `pause_when_idle_seconds` at 1 or more, a recording is paused when the blocks and entities in its area have not changed for that many seconds. As soon as something changes, it resumes on the next tick. The time it was paused for is skipped in the replay.
+> [!WARNING]
+> Only block actions and the arm swings of players keep a recording going and resume a paused one. While nothing but the following happens, the recording is paused. They do not resume it when they happen while it is paused either, so what happens in the meantime is not in the replay.
+>
+> - machines without pistons, such as hopper sorters, redstone clocks, lamps, dispensers and crafters
+> - explosions of TNT and creepers, fire spreading, flowing water and lava
+> - what runs on entities alone, such as mob farms and villagers farming
+> - what happens on its own, such as sheep eating grass, crops and trees growing and bats flying
+> - what players do without swinging their arm, such as moving around, clicking in a menu, eating, shooting a bow, chatting and running commands
+>
+> See [docs/packets.md](docs/packets.md#pause_when_idle_seconds) for the packets that count and the ones that do not.
 
-Even with `chunk_recording_strategy` at `chunk_contains_non_spectator_player` in Server Replay, a recording keeps going while a player in survival mode is left idle in its area. With this setting, such stretches where nothing happens are left out of the recording. While a machine in the area is running, the recording keeps going even if the player is idle.
+With `pause_when_idle_seconds` at 1 or more, a recording is paused when its area has had no block action and no arm swing of a player for that many seconds. As soon as either happens, it resumes on the next tick. The time it was paused for is skipped in the replay.
 
-- Block changes (including block actions, the cracks on a block that is being mined, and explosions) and changes of entities count. The time of day, the weather, the tab list, chat, sounds, particles and chunks that load do not. Nor do level events that only entities send, such as the sound of a bat taking off. See [docs/packets.md](docs/packets.md#pause_when_idle_seconds) for the full list.
-- What `ignore_entities` and `ignore_block_action` leave out of the recording does not count.
-- With `idle_ignore_entities` at `true` (the default), only the entity types in `idle_entity_whitelist` count. By default that is only players, so mobs that just wander around do not keep the recording going. If you want to record a machine that runs on entities alone, such as a mob farm, while you are idle, add its mobs (for example `minecraft:zombified_piglin`) to the list.
-- Players in spectator mode never count, whatever the list says.
-- When a recording resumes, the Flashback format takes a new snapshot. Each resume therefore stops the server for as long as [the snapshot every 5 minutes](#faster-snapshots) does, and adds to the terrain caches. Avoid values of a few seconds; 30 seconds or more is recommended.
-- The change that resumes a recording is not recorded itself. The state after it is in the snapshot that is taken when the recording resumes, so a short movement, such as a piston moving, or a sound is missing.
+Even with `chunk_recording_strategy` at `chunk_contains_non_spectator_player` in Server Replay, a recording keeps going while a player in survival mode is left idle in its area. With this setting, such stretches where nothing happens are left out of the recording.
+
+- Block actions are sent by pistons moving, note blocks, chests, ender chests and shulker boxes opening and closing, bells and decorated pots. While a machine with pistons is running in the area, the recording keeps going even if the player is idle. The block actions of spawners and end gateways do not count, because they come again and again on their own.
+- Players swing their arm when they place or mine a block, hit something or use an item. Walking, sprinting and looking around do not, so a player who only moves around lets the recording pause. Players in spectator mode never count.
+- Block actions that `ignore_block_action` or `block_update_interval_ticks` leave out of the recording count, and so do the arm swings of players that `ignore_entities` leaves out.
+- A carpet bot kept on `/player ... attack` or `/player ... use` swings its arm all the time, so the recording does not pause.
+- When a recording resumes, the Flashback format takes a new snapshot. Each resume therefore stops the server for as long as [the snapshot every 5 minutes](#faster-snapshots) does, and adds to the terrain caches. A minute or two is recommended, so that the recording does not pause and resume again between the moves of a machine.
+- The block action or arm swing that resumes a recording is not recorded itself. Of what happens while it is paused, only the result is in the snapshot that is taken when it resumes. For example, water draining away after the pistons stop is missing from the point the recording paused.
 - The time of day and the weather jump ahead, by the time the recording was paused for, where it resumes.
-- While Server Replay keeps a recording paused for a reason of its own (no players in the area, no chunks loaded, an empty server), that reason wins. The other way around, while this setting keeps a recording paused, it does not resume until something changes, even when the conditions of Server Replay are met.
-- The pauses and resumes of this setting are logged on the server. They do not send the notifications of `pause_notify_players` in Server Replay.
+- While Server Replay keeps a recording paused for a reason of its own (no players in the area, no chunks loaded, an empty server), that reason wins. The other way around, while this setting keeps a recording paused, it does not resume until a block action or an arm swing happens, even when the conditions of Server Replay are met.
+- The pauses and resumes of this setting are logged on the server. With `pause_notify_players` at `true` in Server Replay, everyone is also sent `Paused recording for <name>` and `Resumed recording for <name>`, as when Server Replay pauses and resumes a recording itself. These messages are not recorded.
 
 ## Recovering recordings after a crash
 
@@ -192,11 +197,7 @@ The config that is created when there is no config file (`config/optimize-server
   "zip_while_recording": false,
   "optimize_snapshot": true,
   "zip_compression_level": 1,
-  "pause_when_idle_seconds": 0,
-  "idle_ignore_entities": true,
-  "idle_entity_whitelist": [
-    "minecraft:player"
-  ]
+  "pause_when_idle_seconds": 0
 }
 ```
 

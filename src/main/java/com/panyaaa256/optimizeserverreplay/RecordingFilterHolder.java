@@ -14,4 +14,10 @@ public interface RecordingFilterHolder {
 	 * @return the settings of the recording, or null when the mod does not apply to it
 	 */
 	@Nullable FilterConfig osr$config();
+
+	/**
+	 * Runs the action without recording the packets it sends, like {@code ReplayRecorder.ignore}
+	 * does, which takes a Kotlin function.
+	 */
+	void osr$withoutRecording(Runnable action);
 }
