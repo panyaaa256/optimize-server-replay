@@ -130,7 +130,7 @@ Flashback 形式は、録画の開始時と 5 分ごとに、その時点の状�
 
 Server Replay の `chunk_recording_strategy` を `chunk_contains_non_spectator_player` にしていても、範囲内にサバイバルのプレイヤーが放置されていると、録画は止まりません。この設定を使うと、そうした何も起きていない時間を録画から除けます。範囲内の装置が動いているあいだは、放置していても録画が続きます。
 
-- 変化として数えるのは、ブロックの変化（Block Action、掘っている途中のひび割れ、爆発なども含む）と、エンティティの変化です。時刻、天気、タブリスト、チャット、音、パーティクル、チャンクの読み込みは数えません。一覧は [docs/packets.ja.md](docs/packets.ja.md#pause_when_idle_seconds) にあります。
+- 変化として数えるのは、ブロックの変化（Block Action、掘っている途中のひび割れ、爆発なども含む）と、エンティティの変化です。時刻、天気、タブリスト、チャット、音、パーティクル、チャンクの読み込みは数えません。コウモリが飛び立つときの音のように、エンティティだけが出す Level Event も数えません。一覧は [docs/packets.ja.md](docs/packets.ja.md#pause_when_idle_seconds) にあります。
 - `ignore_entities` や `ignore_block_action` で録画から省いたものは数えません。
 - `idle_ignore_entities` が `true`（初期値）のときは、エンティティは `idle_entity_whitelist` の種類だけを数えます。初期値ではプレイヤーだけなので、モブがうろついているだけなら一時停止します。モブトラップのようにエンティティだけで動く装置を、放置して録画したいときは、そのモブ（例：`minecraft:zombified_piglin`）をリストに足してください。
 - スペクテイターのプレイヤーは、リストに関係なく数えません。

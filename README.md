@@ -130,7 +130,7 @@ With `pause_when_idle_seconds` at 1 or more, a recording is paused when the bloc
 
 Even with `chunk_recording_strategy` at `chunk_contains_non_spectator_player` in Server Replay, a recording keeps going while a player in survival mode is left idle in its area. With this setting, such stretches where nothing happens are left out of the recording. While a machine in the area is running, the recording keeps going even if the player is idle.
 
-- Block changes (including block actions, the cracks on a block that is being mined, and explosions) and changes of entities count. The time of day, the weather, the tab list, chat, sounds, particles and chunks that load do not. See [docs/packets.md](docs/packets.md#pause_when_idle_seconds) for the full list.
+- Block changes (including block actions, the cracks on a block that is being mined, and explosions) and changes of entities count. The time of day, the weather, the tab list, chat, sounds, particles and chunks that load do not. Nor do level events that only entities send, such as the sound of a bat taking off. See [docs/packets.md](docs/packets.md#pause_when_idle_seconds) for the full list.
 - What `ignore_entities` and `ignore_block_action` leave out of the recording does not count.
 - With `idle_ignore_entities` at `true` (the default), only the entity types in `idle_entity_whitelist` count. By default that is only players, so mobs that just wander around do not keep the recording going. If you want to record a machine that runs on entities alone, such as a mob farm, while you are idle, add its mobs (for example `minecraft:zombified_piglin`) to the list.
 - Players in spectator mode never count, whatever the list says.

@@ -4,6 +4,7 @@ import com.panyaaa256.optimizeserverreplay.block.BlockActionFilter;
 import com.panyaaa256.optimizeserverreplay.config.FilterConfig;
 import com.panyaaa256.optimizeserverreplay.entity.EntityPackets;
 import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.ints.IntSet;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundBlockDestructionPacket;
@@ -21,6 +22,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.level.block.LevelEvent;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Set;
@@ -38,8 +40,51 @@ public final class IdleActivity {
 		ClientboundSectionBlocksUpdatePacket.class,
 		ClientboundBlockEntityDataPacket.class,
 		ClientboundBlockDestructionPacket.class,
-		ClientboundLevelEventPacket.class,
 		ClientboundExplodePacket.class
+	);
+
+	/**
+	 * The level events that only entities send in vanilla, players included. They come with the
+	 * entity's own packets or a block change when they mean anything, so they would otherwise make
+	 * an entity count that {@code idle_entity_whitelist} leaves out, such as a bat taking off.
+	 */
+	private static final IntSet ENTITY_LEVEL_EVENTS = IntSet.of(
+		// Mobs
+		LevelEvent.SOUND_GHAST_WARNING,
+		LevelEvent.SOUND_GHAST_FIREBALL,
+		LevelEvent.SOUND_DRAGON_FIREBALL,
+		LevelEvent.SOUND_ZOMBIE_WOODEN_DOOR,
+		LevelEvent.SOUND_ZOMBIE_DOOR_CRASH,
+		LevelEvent.SOUND_WITHER_BLOCK_BREAK,
+		LevelEvent.SOUND_WITHER_BOSS_SPAWN,
+		LevelEvent.SOUND_WITHER_BOSS_SHOOT,
+		LevelEvent.SOUND_BAT_LIFTOFF,
+		LevelEvent.SOUND_ZOMBIE_INFECTED,
+		LevelEvent.SOUND_ZOMBIE_CONVERTED,
+		LevelEvent.SOUND_DRAGON_DEATH,
+		LevelEvent.SOUND_PHANTOM_BITE,
+		LevelEvent.SOUND_ZOMBIE_TO_DROWNED,
+		LevelEvent.SOUND_HUSK_TO_ZOMBIE,
+		LevelEvent.SOUND_SKELETON_TO_STRAY,
+		LevelEvent.PARTICLES_DRAGON_BLOCK_BREAK,
+		LevelEvent.PARTICLES_BEE_GROWTH,
+		LevelEvent.PARTICLES_SMASH_ATTACK,
+		LevelEvent.PARTICLES_WAX_OFF,
+		LevelEvent.PARTICLES_SCRAPE,
+		LevelEvent.ANIMATION_SPAWN_COBWEB,
+		// Projectiles and other entities
+		LevelEvent.PARTICLES_SPELL_POTION_SPLASH,
+		LevelEvent.PARTICLES_INSTANT_POTION_SPLASH,
+		LevelEvent.PARTICLES_EYE_OF_ENDER_DEATH,
+		LevelEvent.PARTICLES_DRAGON_FIREBALL_SPLASH,
+		LevelEvent.PARTICLES_TRIAL_SPAWNER_SPAWN_ITEM,
+		// Players using an item or a menu
+		LevelEvent.SOUND_ANVIL_USED,
+		LevelEvent.SOUND_PORTAL_TRAVEL,
+		LevelEvent.SOUND_END_PORTAL_SPAWN,
+		LevelEvent.SOUND_GRINDSTONE_USED,
+		LevelEvent.SOUND_SMITHING_TABLE_USED,
+		LevelEvent.END_PORTAL_FRAME_FILL
 	);
 
 	private IdleActivity() {
@@ -48,6 +93,9 @@ public final class IdleActivity {
 	public static boolean counts(Packet<?> packet, FilterConfig config, ServerLevel level, int dummyId) {
 		if (packet instanceof ClientboundBlockEventPacket blockEvent) {
 			return BlockActionFilter.shouldRecord(blockEvent, config);
+		}
+		if (packet instanceof ClientboundLevelEventPacket levelEvent) {
+			return !ENTITY_LEVEL_EVENTS.contains(levelEvent.getType());
 		}
 		if (BLOCK_CHANGES.contains(packet.getClass())) {
 			return true;

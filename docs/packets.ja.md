@@ -108,7 +108,7 @@ Optimize Server Replay の各設定が、録画のどのパケットをどう扱
 | `block_entity_data` | 常に |
 | `block_event` | `ignore_block_action` で省かれないもの |
 | `block_destruction` | 常に |
-| `level_event` | 常に |
+| `level_event` | [エンティティだけが出す種類](#エンティティだけが出す-level_event)ではない |
 | `explode` | 常に |
 | [`ignore_entities` の表](#ignore_entities)にあるエンティティのパケット | 下の条件をすべて満たすエンティティが、1 つでも含まれる |
 
@@ -123,3 +123,30 @@ Optimize Server Replay の各設定が、録画のどのパケットをどう扱
 ほかのパケットは数えません。時刻（`set_time`）、天気（`game_event`）、タブリスト、チャット、スコアボード、ボスバー、音、パーティクル、チャンクの読み込み（`level_chunk_with_light`）、明るさの更新（`light_update`）などです。
 
 `block_update_interval_ticks` でまとめているブロックの変化は、まとめて書き出したときではなく、変化したときに数えます。
+
+### エンティティだけが出す `level_event`
+
+バニラでエンティティ（プレイヤーを含む）だけが出す `level_event` は数えません。数えると、コウモリが飛び立つだけで、`idle_entity_whitelist` に無いエンティティの動きで録画が再開してしまうためです。これらは、エンティティ自身のパケットかブロックの変化と一緒に来るので、そちらで数えます。
+
+| 出すもの | `level_event` の種類（ID） |
+|---|---|
+| ガスト | `SOUND_GHAST_WARNING`（1015）、`SOUND_GHAST_FIREBALL`（1016） |
+| エンダードラゴン | `SOUND_DRAGON_FIREBALL`（1017）、`SOUND_DRAGON_DEATH`（1028）、`PARTICLES_DRAGON_BLOCK_BREAK`（2008） |
+| ドアを壊すゾンビなど | `SOUND_ZOMBIE_WOODEN_DOOR`（1019）、`SOUND_ZOMBIE_DOOR_CRASH`（1021） |
+| ウィザー | `SOUND_WITHER_BLOCK_BREAK`（1022）、`SOUND_WITHER_BOSS_SPAWN`（1023）、`SOUND_WITHER_BOSS_SHOOT`（1024） |
+| コウモリ | `SOUND_BAT_LIFTOFF`（1025） |
+| モブの変化 | `SOUND_ZOMBIE_INFECTED`（1026）、`SOUND_ZOMBIE_CONVERTED`（1027）、`SOUND_ZOMBIE_TO_DROWNED`（1040）、`SOUND_HUSK_TO_ZOMBIE`（1041）、`SOUND_SKELETON_TO_STRAY`（1048） |
+| ファントム | `SOUND_PHANTOM_BITE`（1039） |
+| ミツバチ | `PARTICLES_BEE_GROWTH`（2011） |
+| メイスの攻撃 | `PARTICLES_SMASH_ATTACK`（2013） |
+| 斧を使うプレイヤー、`minecraft:copper_golem` | `PARTICLES_WAX_OFF`（3004）、`PARTICLES_SCRAPE`（3005） |
+| `minecraft:weaving` の効果を持ったまま倒れたエンティティ | `ANIMATION_SPAWN_COBWEB`（3018） |
+| 投げたポーション、経験値瓶 | `PARTICLES_SPELL_POTION_SPLASH`（2002）、`PARTICLES_INSTANT_POTION_SPLASH`（2007） |
+| エンダーアイ | `PARTICLES_EYE_OF_ENDER_DEATH`（2003） |
+| ドラゴンの火の玉 | `PARTICLES_DRAGON_FIREBALL_SPLASH`（2006） |
+| `minecraft:ominous_item_spawner` | `PARTICLES_TRIAL_SPAWNER_SPAWN_ITEM`（3021） |
+| 金床、砥石、鍛冶台を使うプレイヤー | `SOUND_ANVIL_USED`（1030）、`SOUND_GRINDSTONE_USED`（1042）、`SOUND_SMITHING_TABLE_USED`（1044） |
+| エンドポータルの枠にエンダーアイをはめるプレイヤー | `END_PORTAL_FRAME_FILL`（1503）、`SOUND_END_PORTAL_SPAWN`（1038） |
+| ポータルを通ったプレイヤー | `SOUND_PORTAL_TRAVEL`（1032） |
+
+ブロックや発射装置も出す種類は、エンティティが出したものでも数えます。たとえば、ブロックが壊れるときの `PARTICLES_DESTROY_BLOCK`（2001）、骨粉の `PARTICLES_AND_SOUND_PLANT_GROWTH`（1505）、ファイヤーチャージの `SOUND_BLAZE_FIREBALL`（1018）、雷の `PARTICLES_ELECTRIC_SPARK`（3002）です。

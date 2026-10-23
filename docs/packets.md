@@ -108,7 +108,7 @@ When 1 or more, the packets below count as a change. When none of them arrives f
 | `block_entity_data` | always |
 | `block_event` | it is not left out by `ignore_block_action` |
 | `block_destruction` | always |
-| `level_event` | always |
+| `level_event` | its type is not [one that only entities send](#level_event-that-only-entities-send) |
 | `explode` | always |
 | the entity packets in [the `ignore_entities` table](#ignore_entities) | any of its entities meets all of the conditions below |
 
@@ -123,3 +123,30 @@ An entity counts when:
 No other packet counts, such as the time of day (`set_time`), the weather (`game_event`), the tab list, chat, the scoreboard, boss bars, sounds, particles, chunks that load (`level_chunk_with_light`) and light updates (`light_update`).
 
 Block changes that `block_update_interval_ticks` records together count when they happen, not when they are written out.
+
+### `level_event` that only entities send
+
+A `level_event` that only entities (players included) send in vanilla does not count. Otherwise a bat taking off, or another entity that `idle_entity_whitelist` leaves out, would resume the recording. These come with the entity's own packets or with a block change, which count instead.
+
+| Sent by | `level_event` type (ID) |
+|---|---|
+| ghasts | `SOUND_GHAST_WARNING` (1015), `SOUND_GHAST_FIREBALL` (1016) |
+| the ender dragon | `SOUND_DRAGON_FIREBALL` (1017), `SOUND_DRAGON_DEATH` (1028), `PARTICLES_DRAGON_BLOCK_BREAK` (2008) |
+| zombies and others breaking doors | `SOUND_ZOMBIE_WOODEN_DOOR` (1019), `SOUND_ZOMBIE_DOOR_CRASH` (1021) |
+| the wither | `SOUND_WITHER_BLOCK_BREAK` (1022), `SOUND_WITHER_BOSS_SPAWN` (1023), `SOUND_WITHER_BOSS_SHOOT` (1024) |
+| bats | `SOUND_BAT_LIFTOFF` (1025) |
+| mobs converting | `SOUND_ZOMBIE_INFECTED` (1026), `SOUND_ZOMBIE_CONVERTED` (1027), `SOUND_ZOMBIE_TO_DROWNED` (1040), `SOUND_HUSK_TO_ZOMBIE` (1041), `SOUND_SKELETON_TO_STRAY` (1048) |
+| phantoms | `SOUND_PHANTOM_BITE` (1039) |
+| bees | `PARTICLES_BEE_GROWTH` (2011) |
+| mace attacks | `PARTICLES_SMASH_ATTACK` (2013) |
+| players using an axe, copper golems | `PARTICLES_WAX_OFF` (3004), `PARTICLES_SCRAPE` (3005) |
+| entities dying with the Weaving effect | `ANIMATION_SPAWN_COBWEB` (3018) |
+| thrown potions and bottles o' enchanting | `PARTICLES_SPELL_POTION_SPLASH` (2002), `PARTICLES_INSTANT_POTION_SPLASH` (2007) |
+| eyes of ender | `PARTICLES_EYE_OF_ENDER_DEATH` (2003) |
+| dragon fireballs | `PARTICLES_DRAGON_FIREBALL_SPLASH` (2006) |
+| ominous item spawners | `PARTICLES_TRIAL_SPAWNER_SPAWN_ITEM` (3021) |
+| players using an anvil, a grindstone or a smithing table | `SOUND_ANVIL_USED` (1030), `SOUND_GRINDSTONE_USED` (1042), `SOUND_SMITHING_TABLE_USED` (1044) |
+| players putting an eye of ender in an end portal frame | `END_PORTAL_FRAME_FILL` (1503), `SOUND_END_PORTAL_SPAWN` (1038) |
+| players going through a portal | `SOUND_PORTAL_TRAVEL` (1032) |
+
+A type that blocks or dispensers send too still counts, even when an entity sent it, such as `PARTICLES_DESTROY_BLOCK` (2001) when a block breaks, `PARTICLES_AND_SOUND_PLANT_GROWTH` (1505) for bone meal, `SOUND_BLAZE_FIREBALL` (1018) for fire charges and `PARTICLES_ELECTRIC_SPARK` (3002) for lightning.
