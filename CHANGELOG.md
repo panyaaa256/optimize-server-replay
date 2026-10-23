@@ -1,11 +1,3 @@
-Changes what keeps a recording going with `pause_when_idle_seconds`: only block actions and the arm swings of players count now. `idle_ignore_entities` and `idle_entity_whitelist` are no longer used, so you can delete them from your `config.json`.
+Keeps a recording paused when Server Replay resumes it after nothing has happened for `pause_when_idle_seconds`, so that no snapshot is taken for nothing.
 
-### Added
-- Tell everyone when `pause_when_idle_seconds` pauses or resumes a recording, with the same messages as Server Replay, while `pause_notify_players` is on in Server Replay ([#9](https://github.com/panyaaa256/optimize-server-replay/pull/9))
-
-### Changed
-- Count only block actions (pistons, note blocks, chests, bells and so on, apart from spawners and end gateways) and the arm swings of players as activity for `pause_when_idle_seconds`. Block changes, the movement of entities and level events no longer count, so sheep eating grass, crops growing and players who only walk around no longer keep a recording going. Neither do players who stand still, whose position the server sends every 3 seconds ([#9](https://github.com/panyaaa256/optimize-server-replay/pull/9))
-- Count block actions and arm swings even when `ignore_block_action`, `block_update_interval_ticks` or `ignore_entities` leave them out of the recording ([#9](https://github.com/panyaaa256/optimize-server-replay/pull/9))
-
-### Removed
-- Remove `idle_ignore_entities` and `idle_entity_whitelist` ([#9](https://github.com/panyaaa256/optimize-server-replay/pull/9))
+- Count the time towards `pause_when_idle_seconds` while Server Replay keeps a recording paused too, for example while every player in the area is in spectator mode. Once it has passed, the recording stays paused when Server Replay resumes it, until a block action or an arm swing happens. Before, the recording resumed and took a new snapshot, only to be paused again once the time had passed ([#10](https://github.com/panyaaa256/optimize-server-replay/pull/10))

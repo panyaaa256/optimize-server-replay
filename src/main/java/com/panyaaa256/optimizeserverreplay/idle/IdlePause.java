@@ -19,7 +19,8 @@ public final class IdlePause {
 	private final int idleTicksToPause;
 
 	private int idleTicks = 0;
-	// Whether we have paused the recording, and it has not been resumed since.
+	// Whether we keep the recording paused, having paused it ourselves or having found it paused by
+	// Arcade when nothing had happened for long enough, and it has not been resumed since.
 	private boolean paused = false;
 	// Whether something has happened since we paused the recording.
 	private boolean active = false;
@@ -58,14 +59,21 @@ public final class IdlePause {
 			return;
 		}
 
-		if (this.recorder.getPaused()) {
-			this.idleTicks = 0;
-			return;
-		}
+		// This also counts while Arcade keeps the recording paused, so that when Arcade resumes it
+		// after nothing has happened for long enough, it is not resumed only to be paused again.
 		this.idleTicks++;
 		if (this.idleTicks >= this.idleTicksToPause) {
 			this.idleTicks = 0;
-			if (this.switchTo(true)) {
+			if (this.recorder.getPaused()) {
+				// The recording does not pause now, so the players are not told.
+				this.paused = true;
+				this.arcadeRuns = false;
+				OptimizeServerReplay.LOGGER.info(
+					"Recording {} stays paused when Server Replay resumes it: no block action or player swing in its area for {} seconds",
+					this.recorder.getName(),
+					this.idleTicksToPause / 20
+				);
+			} else if (this.switchTo(true)) {
 				this.paused = true;
 				this.arcadeRuns = true;
 				OptimizeServerReplay.LOGGER.info(
