@@ -6,6 +6,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
@@ -37,7 +38,8 @@ public final class StreamingZip {
 	public static final String PARTIAL = "osr-partial.zip";
 
 	private static final AtomicInteger THREAD_NUMBER = new AtomicInteger();
-	private static final int BUFFER_SIZE = 1 << 20;
+	// See ReplayZip for why it is not bigger.
+	private static final int BUFFER_SIZE = ReplayZip.BUFFER_SIZE;
 
 	private final Path directory;
 	private final int level;
@@ -51,7 +53,7 @@ public final class StreamingZip {
 	// Everything below is only used on the thread of the executor.
 	private final Set<String> added = new HashSet<>();
 	private @Nullable FileChannel channel;
-	private @Nullable ZipOutputStream out;
+	private @Nullable PartialZipOutputStream out;
 	// After a failure, the files stay in the folder and the replay is put together when it is saved.
 	private boolean failed = false;
 	private boolean closed = false;
@@ -153,7 +155,7 @@ public final class StreamingZip {
 		}
 	}
 
-	private ZipOutputStream open() throws IOException {
+	private PartialZipOutputStream open() throws IOException {
 		if (this.closed) {
 			throw new IOException("The zip of the recording " + this.directory + " is already closed");
 		}
@@ -162,7 +164,7 @@ public final class StreamingZip {
 				this.directory.resolve(PARTIAL),
 				StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE
 			);
-			this.out = new ZipOutputStream(new BufferedOutputStream(Channels.newOutputStream(this.channel), BUFFER_SIZE));
+			this.out = new PartialZipOutputStream(new BufferedOutputStream(Channels.newOutputStream(this.channel), BUFFER_SIZE));
 			this.out.setLevel(this.level);
 		}
 		return this.out;
@@ -181,6 +183,10 @@ public final class StreamingZip {
 	// Leaves the partial zip without its list of entries, which the recovery does not need.
 	private void closeQuietly() {
 		this.closed = true;
+		if (this.out != null) {
+			// Without close(), the native memory of the deflater stays until the GC gets to it.
+			this.out.endDeflater();
+		}
 		if (this.channel != null) {
 			try {
 				this.channel.close();
@@ -189,6 +195,19 @@ public final class StreamingZip {
 		}
 		this.out = null;
 		this.channel = null;
+	}
+
+	/**
+	 * Lets the deflater be ended without close(), which would write the list of entries.
+	 */
+	private static final class PartialZipOutputStream extends ZipOutputStream {
+		PartialZipOutputStream(OutputStream out) {
+			super(out);
+		}
+
+		void endDeflater() {
+			this.def.end();
+		}
 	}
 
 	private void await(Future<?> future) throws IOException {

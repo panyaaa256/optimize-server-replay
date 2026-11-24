@@ -1,3 +1,4 @@
-Keeps a recording paused when Server Replay resumes it after nothing has happened for `pause_when_idle_seconds`, so that no snapshot is taken for nothing.
+Uses less memory outside the Java heap when saving a recording.
 
-- Count the time towards `pause_when_idle_seconds` while Server Replay keeps a recording paused too, for example while every player in the area is in spectator mode. Once it has passed, the recording stays paused when Server Replay resumes it, until a block action or an arm swing happens. Before, the recording resumed and took a new snapshot, only to be paused again once the time had passed ([#10](https://github.com/panyaaa256/optimize-server-replay/pull/10))
+- With `zip_while_recording`, free the native memory of the zip (about 256 KB) right away when a recording is stopped without saving, or can no longer be added to the zip. Before, it stayed until the GC got to it
+- Write the zip of a recording through a buffer of 64 KB instead of 1 MB. The JDK keeps a direct buffer of the same size for each thread that writes it, so it took about 1 MB outside the heap per thread. Writing in batches works about as well as before
