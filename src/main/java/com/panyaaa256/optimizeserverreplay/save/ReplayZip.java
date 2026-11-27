@@ -19,8 +19,10 @@ public final class ReplayZip {
 	public static final String METADATA_OLD = "metadata.json.old";
 
 	// ZipOutputStream hands its output on in pieces of 512 bytes, which would each be a write
-	// to the file without a buffer.
-	private static final int BUFFER_SIZE = 1 << 20;
+	// to the file without a buffer. Writing a heap array to the file goes through a direct buffer
+	// of the same size, which the JDK keeps for the thread until it ends, so a bigger buffer only
+	// takes memory outside the heap.
+	static final int BUFFER_SIZE = 1 << 16;
 
 	private ReplayZip() {
 	}
