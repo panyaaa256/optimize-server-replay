@@ -8,6 +8,7 @@
 		"FlashbackChunkedWriterMixin",
 		"FlashbackWriterMixin",
 		"RecorderRecovererMixin",
+		"RejoinedReplayPlayerMixin",
 		"ReplayChunkRecorderMixin",
 		"ReplayRecorderMixin",
 		"ServerReplayMixin",
