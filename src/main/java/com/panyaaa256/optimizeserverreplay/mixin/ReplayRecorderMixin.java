@@ -1,11 +1,14 @@
 package com.panyaaa256.optimizeserverreplay.mixin;
 
+import com.llamalad7.mixinextras.sugar.Share;
+import com.llamalad7.mixinextras.sugar.ref.LocalBooleanRef;
 import com.mojang.authlib.GameProfile;
 import com.panyaaa256.optimizeserverreplay.HookStatus;
 import com.panyaaa256.optimizeserverreplay.OptimizeServerReplay;
 import com.panyaaa256.optimizeserverreplay.RecordingFilter;
 import com.panyaaa256.optimizeserverreplay.RecordingFilterHolder;
 import com.panyaaa256.optimizeserverreplay.config.FilterConfig;
+import com.panyaaa256.optimizeserverreplay.leak.RecorderCleanup;
 import com.panyaaa256.optimizeserverreplay.save.FlashbackWriterHolder;
 import net.casual.arcade.replay.io.ReplayFormat;
 import net.casual.arcade.replay.io.writer.ReplayWriter;
@@ -36,6 +39,9 @@ public abstract class ReplayRecorderMixin implements RecordingFilterHolder {
 	private boolean ignore;
 
 	@Shadow
+	private boolean started;
+
+	@Shadow
 	protected abstract ReplayWriter getWriter();
 
 	@Inject(method = "<init>", at = @At("TAIL"))
@@ -58,6 +64,14 @@ public abstract class ReplayRecorderMixin implements RecordingFilterHolder {
 				FlashbackWriterHolder writer = (FlashbackWriterHolder) this.getWriter();
 				if (config.optimizeSaving()) {
 					writer.osr$skipChunkCacheSync();
+					if (HookStatus.handlersApplied("Keeping the chunk cache file open (optimize_saving)", HookStatus.CACHE_FILE_HOOKS,
+						"The chunk cache file is opened for every chunk.")) {
+						writer.osr$keepChunkCacheOpen();
+					}
+				}
+				if (config.streamReplayChunks() && HookStatus.handlersApplied("stream_replay_chunks", HookStatus.STREAM_HOOKS,
+					"Replay chunks are kept in memory until they end.")) {
+					writer.osr$streamReplayChunks();
 				}
 				if (config.zipWhileRecording() && HookStatus.streamingHooksApplied()) {
 					writer.osr$zipWhileRecording(config.zipCompressionLevel());
@@ -111,14 +125,58 @@ public abstract class ReplayRecorderMixin implements RecordingFilterHolder {
 	}
 
 	@Inject(method = "stop(Z)Ljava/util/concurrent/CompletableFuture;", at = @At("HEAD"))
-	private void osr$onStop(boolean save, CallbackInfoReturnable<CompletableFuture<Long>> cir) {
+	private void osr$onStop(
+		boolean save,
+		CallbackInfoReturnable<CompletableFuture<Long>> cir,
+		@Share("closing") LocalBooleanRef closing
+	) {
+		// Stopping a recording that already stopped returns a failed future, which says nothing
+		// about how the recording was saved.
+		closing.set(!((ReplayRecorder) (Object) this).getStopped());
 		this.osr$flushBlockUpdates();
+	}
+
+	@Inject(method = "stop(Z)Ljava/util/concurrent/CompletableFuture;", at = @At("RETURN"))
+	private void osr$onStopped(
+		boolean save,
+		CallbackInfoReturnable<CompletableFuture<Long>> cir,
+		@Share("closing") LocalBooleanRef closing
+	) {
+		if (!closing.get()) {
+			return;
+		}
+		FilterConfig config = this.osr$config();
+		if (!(config == null ? FilterConfig.current() : config).fixMemoryLeaks()) {
+			return;
+		}
+
+		ReplayRecorder recorder = (ReplayRecorder) (Object) this;
+		ReplayWriter writer = this.getWriter();
+		try {
+			cir.getReturnValue().whenComplete((size, error) -> {
+				if (error != null) {
+					RecorderCleanup.onSaveFailed(recorder, writer);
+				}
+			});
+			if (recorder instanceof ReplayChunkRecorder chunk && this.started && recorder.getServer().isSameThread()) {
+				RecorderCleanup.forgetDummy(chunk);
+			}
+		} catch (Exception e) {
+			OptimizeServerReplay.LOGGER.warn("Failed to let go of the recording {}", recorder.getName(), e);
+		}
 	}
 
 	@Override
 	public void osr$flushBlockUpdates() {
 		if (this.osr$filter != null) {
 			this.osr$filter.flushBlockUpdates();
+		}
+	}
+
+	@Override
+	public void osr$onNewReplayChunk() {
+		if (this.osr$filter != null) {
+			this.osr$filter.onNewReplayChunk();
 		}
 	}
 

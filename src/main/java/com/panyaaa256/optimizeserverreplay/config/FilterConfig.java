@@ -31,7 +31,10 @@ public record FilterConfig(
 	boolean zipWhileRecording,
 	boolean optimizeSnapshot,
 	int zipCompressionLevel,
-	int pauseWhenIdleSeconds
+	int pauseWhenIdleSeconds,
+	boolean fixMemoryLeaks,
+	boolean streamReplayChunks,
+	boolean optimizeEntityTracking
 ) {
 	/** The length of a Flashback replay chunk, which a batch of block updates cannot outlast. */
 	public static final int MAX_BLOCK_UPDATE_INTERVAL_TICKS = 6000;
@@ -54,7 +57,10 @@ public record FilterConfig(
 		true,
 		// The level Arcade saves with.
 		Deflater.BEST_SPEED,
-		0
+		0,
+		true,
+		true,
+		true
 	);
 
 	private static volatile FilterConfig current = DEFAULT;
@@ -90,6 +96,9 @@ public record FilterConfig(
 		json.addProperty("optimize_snapshot", DEFAULT.optimizeSnapshot);
 		json.addProperty("zip_compression_level", DEFAULT.zipCompressionLevel);
 		json.addProperty("pause_when_idle_seconds", DEFAULT.pauseWhenIdleSeconds);
+		json.addProperty("fix_memory_leaks", DEFAULT.fixMemoryLeaks);
+		json.addProperty("stream_replay_chunks", DEFAULT.streamReplayChunks);
+		json.addProperty("optimize_entity_tracking", DEFAULT.optimizeEntityTracking);
 		try {
 			Files.createDirectories(file.getParent());
 			Files.writeString(file, new GsonBuilder().setPrettyPrinting().create().toJson(json) + "\n");
@@ -121,7 +130,10 @@ public record FilterConfig(
 			readBoolean(json, "zip_while_recording", DEFAULT.zipWhileRecording),
 			readBoolean(json, "optimize_snapshot", DEFAULT.optimizeSnapshot),
 			readWholeNumber(json, "zip_compression_level", DEFAULT.zipCompressionLevel, MAX_ZIP_COMPRESSION_LEVEL),
-			readWholeNumber(json, "pause_when_idle_seconds", DEFAULT.pauseWhenIdleSeconds, MAX_PAUSE_WHEN_IDLE_SECONDS)
+			readWholeNumber(json, "pause_when_idle_seconds", DEFAULT.pauseWhenIdleSeconds, MAX_PAUSE_WHEN_IDLE_SECONDS),
+			readBoolean(json, "fix_memory_leaks", DEFAULT.fixMemoryLeaks),
+			readBoolean(json, "stream_replay_chunks", DEFAULT.streamReplayChunks),
+			readBoolean(json, "optimize_entity_tracking", DEFAULT.optimizeEntityTracking)
 		);
 	}
 

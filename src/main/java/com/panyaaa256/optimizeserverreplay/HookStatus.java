@@ -54,6 +54,42 @@ public final class HookStatus {
 		"ReplayRecorder#osr$onResume"
 	);
 
+	/**
+	 * The hooks that {@code stream_replay_chunks} needs, by the name of their handler. Writing part
+	 * of a replay chunk early without the hook that appends the rest would break the chunk, so it
+	 * is all or nothing.
+	 */
+	public static final Set<String> STREAM_HOOKS = Set.of(
+		"osr$onWriteAction",
+		"osr$onStartSnapshot",
+		"osr$onEndSnapshot",
+		"osr$onWriteChunk",
+		"osr$onEndChunk",
+		"osr$onClose",
+		"osr$onGetWrittenBytes"
+	);
+
+	/**
+	 * The hooks that keeping the chunk cache file open ({@code optimize_saving}) needs.
+	 */
+	public static final Set<String> CACHE_FILE_HOOKS = Set.of(
+		"osr$onWriteLevelChunk",
+		"osr$onStartEndChunk",
+		"osr$onClose"
+	);
+
+	/**
+	 * The hooks that the cache of {@code ReplayChunkRecorders.updateRecordable}
+	 * ({@code optimize_entity_tracking}) needs. Without the ones that notice a recorder being added
+	 * or removed, the cache would keep an entity out of a new recording.
+	 */
+	public static final Set<String> RECORDABLE_CACHE_HOOKS = Set.of(
+		"osr$onRecorderCreated",
+		"osr$onRecorderRemoved",
+		"osr$onUpdateRecordable",
+		"osr$onUpdatedRecordable"
+	);
+
 	private static final Logger LOGGER = LoggerFactory.getLogger("optimize-server-replay");
 
 	private static final Set<String> APPLIED = ConcurrentHashMap.newKeySet();
@@ -62,6 +98,7 @@ public final class HookStatus {
 	private static final AtomicBoolean WARNED_STREAMING = new AtomicBoolean();
 	private static final AtomicBoolean WARNED_SNAPSHOT = new AtomicBoolean();
 	private static final AtomicBoolean WARNED_IDLE = new AtomicBoolean();
+	private static final Set<String> WARNED_FEATURES = ConcurrentHashMap.newKeySet();
 
 	private HookStatus() {
 	}
@@ -113,6 +150,28 @@ public final class HookStatus {
 				"optimize_snapshot is turned off: the installed Server Replay / Arcade versions do not match, "
 					+ "so these hooks were not applied: {}. Snapshots are taken the usual way.",
 				missing
+			);
+		}
+		return false;
+	}
+
+	/**
+	 * Whether every handler is applied, matched by the name of the handler alone, as some of the
+	 * classes are named differently at runtime. Warns once per feature otherwise.
+	 */
+	public static boolean handlersApplied(String feature, Set<String> handlers, String consequence) {
+		Set<String> missing = new TreeSet<>(handlers);
+		for (String applied : APPLIED_HANDLERS) {
+			missing.remove(applied.substring(applied.indexOf('#') + 1));
+		}
+		if (missing.isEmpty()) {
+			return true;
+		}
+		if (WARNED_FEATURES.add(feature)) {
+			LOGGER.warn(
+				"{} is turned off: the installed Server Replay / Arcade versions do not match, "
+					+ "so these hooks were not applied: {}. {}",
+				feature, missing, consequence
 			);
 		}
 		return false;

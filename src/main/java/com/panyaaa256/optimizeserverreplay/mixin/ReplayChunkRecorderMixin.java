@@ -5,6 +5,7 @@ import com.panyaaa256.optimizeserverreplay.RecordingFilterHolder;
 import com.panyaaa256.optimizeserverreplay.config.FilterConfig;
 import com.panyaaa256.optimizeserverreplay.mixin.accessor.TrackedEntityAccessor;
 import com.panyaaa256.optimizeserverreplay.snapshot.TrackedEntities;
+import com.panyaaa256.optimizeserverreplay.tracking.ChunkEntities;
 import net.casual.arcade.replay.recorder.ChunkSender;
 import net.casual.arcade.replay.recorder.chunk.ReplayChunkRecordable;
 import net.casual.arcade.replay.recorder.chunk.ReplayChunkRecorder;
@@ -44,17 +45,24 @@ public abstract class ReplayChunkRecorderMixin {
 
 	/**
 	 * What {@code ChunkSender.sendChunk} does, with the entities of the chunk taken from
-	 * {@link #osr$entities}. Snapshots and the start of a recording send their chunks through
-	 * sendChunks; a chunk sent on its own is left to Arcade.
+	 * {@link #osr$entities} when the chunks of a snapshot or of the start of the recording are sent
+	 * (optimize_snapshot), or looked up around the chunk when a chunk is sent on its own because it
+	 * was loaded (optimize_entity_tracking). Arcade goes through every entity of the level for
+	 * every chunk it sends.
 	 */
 	@Inject(method = "sendChunk", at = @At("HEAD"), cancellable = true)
 	private void osr$onSendChunk(LevelChunk chunk, ChunkSender.SeenEntities seen, CallbackInfo ci) {
 		ServerLevel level = this.osr$level();
-		if (this.osr$entities == null) {
+		Iterable<Object> entities;
+		if (this.osr$entities != null) {
+			if (!this.osr$entities.isCurrent(level)) {
+				this.osr$entities = TrackedEntities.of(level);
+			}
+			entities = this.osr$entities.in(chunk.getPos().toLong());
+		} else if (this.osr$tracksEntitiesByChunk()) {
+			entities = ChunkEntities.trackedIn(level, chunk.getPos());
+		} else {
 			return;
-		}
-		if (!this.osr$entities.isCurrent(level)) {
-			this.osr$entities = TrackedEntities.of(level);
 		}
 
 		ChunkSender sender = (ChunkSender) this;
@@ -63,7 +71,7 @@ public abstract class ReplayChunkRecorderMixin {
 		List<Mob> leashed = new ArrayList<>();
 		List<Entity> ridden = new ArrayList<>();
 		int viewDistance = level.getServer().getPlayerList().getViewDistance();
-		for (Object tracked : this.osr$entities.in(chunk.getPos().toLong())) {
+		for (Object tracked : entities) {
 			TrackedEntityAccessor accessor = (TrackedEntityAccessor) tracked;
 			Entity entity = accessor.osr$entity();
 			if (!seen.has(entity.getId())) {
@@ -91,6 +99,12 @@ public abstract class ReplayChunkRecorderMixin {
 
 		sender.onChunkSent(chunk);
 		ci.cancel();
+	}
+
+	@Unique
+	private boolean osr$tracksEntitiesByChunk() {
+		FilterConfig config = ((RecordingFilterHolder) this).osr$config();
+		return config != null && config.optimizeEntityTracking();
 	}
 
 	@Unique

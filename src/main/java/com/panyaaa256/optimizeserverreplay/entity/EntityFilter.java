@@ -86,6 +86,14 @@ public final class EntityFilter {
 		}
 	}
 
+	/**
+	 * Forgets the entities that were kept, before a snapshot adds the ones that are still there.
+	 */
+	public void forgetKept() {
+		this.kept.clear();
+		this.kept.trim();
+	}
+
 	private boolean shouldKeep(int id, int dummy, boolean keepsNothing) {
 		return id == dummy || (!keepsNothing && this.kept.contains(id));
 	}

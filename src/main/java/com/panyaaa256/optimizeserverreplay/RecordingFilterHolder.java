@@ -11,6 +11,11 @@ public interface RecordingFilterHolder {
 	void osr$flushBlockUpdates();
 
 	/**
+	 * Called on the server thread when a replay chunk starts, before its snapshot is taken.
+	 */
+	void osr$onNewReplayChunk();
+
+	/**
 	 * @return the settings of the recording, or null when the mod does not apply to it
 	 */
 	@Nullable FilterConfig osr$config();
