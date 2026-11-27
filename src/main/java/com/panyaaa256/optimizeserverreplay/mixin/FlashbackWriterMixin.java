@@ -34,10 +34,10 @@ public abstract class FlashbackWriterMixin implements FlashbackWriterHolder {
 	public abstract ReplayRecorder getRecorder();
 
 	// A new replay chunk starts with a snapshot of the world, which the batched block
-	// updates have to come before.
+	// updates have to come before, and which adds every entity again.
 	@Inject(method = "startNewReplayChunk", at = @At("HEAD"))
 	private void osr$onStartNewReplayChunk(CallbackInfo ci) {
-		((RecordingFilterHolder) this.getRecorder()).osr$flushBlockUpdates();
+		((RecordingFilterHolder) this.getRecorder()).osr$onNewReplayChunk();
 	}
 
 	// The local function that saves the recording in close(), which runs on the writer thread.
@@ -74,6 +74,21 @@ public abstract class FlashbackWriterMixin implements FlashbackWriterHolder {
 	@Override
 	public @Nullable StreamingZip osr$streamingZip() {
 		return this.osr$writer().osr$streamingZip();
+	}
+
+	@Override
+	public void osr$keepChunkCacheOpen() {
+		this.osr$writer().osr$keepChunkCacheOpen();
+	}
+
+	@Override
+	public void osr$streamReplayChunks() {
+		this.osr$writer().osr$streamReplayChunks();
+	}
+
+	@Override
+	public void osr$releaseAfterFailedSave() {
+		this.osr$writer().osr$releaseAfterFailedSave();
 	}
 
 	@Unique

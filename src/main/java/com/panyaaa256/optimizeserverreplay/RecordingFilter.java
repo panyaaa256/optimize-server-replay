@@ -137,6 +137,18 @@ public final class RecordingFilter {
 		}
 	}
 
+	/**
+	 * The snapshot of a new replay chunk adds every entity of the recording again, so the
+	 * entities that were kept before are forgotten. Otherwise those that were removed while the
+	 * recording was paused, when no packet reaches the filter, would be kept track of forever.
+	 */
+	public void onNewReplayChunk() {
+		this.flushBlockUpdates();
+		if (this.recorder.getServer().isSameThread()) {
+			this.entities.forgetKept();
+		}
+	}
+
 	private boolean batchesBlockUpdates() {
 		return this.config.blockUpdateIntervalTicks() >= 1;
 	}

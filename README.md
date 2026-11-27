@@ -14,7 +14,7 @@ A recording can also be paused when nothing changes in its area for a while.
 
 Every feature is off by default. Turn on the ones you want in the [config](#configuration).
 
-The mod only applies to **chunk recordings in the Flashback format**. It does not work for chunk recordings in the ReplayMod format, or for player recordings (`/replay start players`).
+The mod only applies to **chunk recordings in the Flashback format**. It does not work for chunk recordings in the ReplayMod format, or for player recordings (`/replay start players`). The exceptions are the [memory leak fixes](#memory-leak-fixes), which apply to every recording and have no setting, and the crash recovery.
 
 ## Requirements
 
@@ -44,9 +44,10 @@ The config file is `config/optimize-server-replay/config.json`. If it does not e
   "block_update_interval_ticks": 0,
   "optimize_saving": true,
   "zip_while_recording": false,
-  "optimize_snapshot": true,
   "zip_compression_level": 1,
-  "pause_when_idle_seconds": 0
+  "pause_when_idle_seconds": 0,
+  "stream_replay_chunks": true,
+  "optimize_entity_tracking": true
 }
 ```
 
@@ -58,9 +59,10 @@ The config file is `config/optimize-server-replay/config.json`. If it does not e
 | `block_update_interval_ticks` | whole number from 0 to 6000 | `0` | Record block changes together once every this many ticks. `0` records them as they happen |
 | `optimize_saving` | true / false | `true` | Save recordings faster. The content of the recording stays the same (see [Faster saving](#faster-saving)) |
 | `zip_while_recording` | true / false | `false` | Zip a recording while it records (see [Zipping while recording](#zipping-while-recording)) |
-| `optimize_snapshot` | true / false | `true` | Shorten the time the server stops when a recording starts, and for the snapshot taken every 5 minutes. The content of the recording stays the same (see [Faster snapshots](#faster-snapshots)) |
 | `zip_compression_level` | whole number from 0 to 9 | `1` | The zip compression level a recording is saved with. A higher level makes the file smaller and the save slower. `0` stores the files without compressing them. `1` is what Server Replay uses |
 | `pause_when_idle_seconds` | whole number from 0 to 86400 | `0` | Pause a recording when its area has had no block action and no arm swing of a player for this many seconds. `0` never pauses it (see [Pausing when nothing changes](#pausing-when-nothing-changes)) |
+| `stream_replay_chunks` | true / false | `true` | Write the 5 minute replay chunk to disk as it is recorded, instead of keeping all of it in memory. The content of the recording stays the same (see [Writing replay chunks as they are recorded](#writing-replay-chunks-as-they-are-recorded)) |
+| `optimize_entity_tracking` | true / false | `true` | Find the entities of a chunk without going through every entity of the world, which shortens the time the server stops when a recording starts, for the snapshot taken every 5 minutes, and when a chunk of a recording is loaded. Also stop checking every recording for every entity whenever a player moves. The same entities are recorded (see [Lighter entity tracking](#lighter-entity-tracking)) |
 
 - `/replay reload` reads the config again. The new settings are used by the recordings that start after that. A recording that is already running keeps the settings it started with.
 - When a value has the wrong type, a key is missing, or the file is not valid JSON, the mod logs a warning and uses the default. It never rewrites your config file.
@@ -95,6 +97,7 @@ With `optimize_saving` at `true`, recordings are saved differently. Apart from t
 
 - The zip of a recording is written in larger pieces.
 - Each chunk of terrain that is cached no longer waits until it is on the disk, just like the other files of the recording.
+- The terrain cache file is kept open while chunks are added to it, instead of being opened and closed for every chunk. It is closed every 5 minutes and when the recording stops.
 - `metadata.json.old`, which is only needed while recording, is left out of the zip.
 
 ### Zipping while recording
@@ -107,11 +110,34 @@ With `zip_while_recording` at `true`, the files of a recording go into its zip w
 - When the server goes down during a recording, the folder holds the unfinished zip and the remaining files. With this mod installed, it is [recovered](#recovering-recordings-after-a-crash) on the next start, but zipping the folder by hand does not make a replay that opens.
 - If the files can no longer go into the zip (for example when the disk is full), the rest stay in the folder, and saving puts them together with the unfinished zip.
 
-### Faster snapshots
+### Memory leak fixes
 
-The Flashback format records the current state (a snapshot) when a recording starts and every 5 minutes. For each of its chunks, Server Replay goes through every entity of the world to find the ones in that chunk, so the more chunks and entities there are, the longer the server stops.
+The following no longer stay in memory. These are fixes that change nothing that is recorded, so they have no setting. They applied to every recording, so they also work for player recordings and the ReplayMod format.
 
-With `optimize_snapshot` at `true`, the entities are sorted into their chunks once, before the chunks are sent. The packets that are recorded, and their order, stay the same.
+- **Every snapshot, and every stopped recording.** Fabric API keeps each packet listener (the connection of a player) until it disconnects. Server Replay makes listeners that never connect: one for the invisible player of each chunk recording, and a new player with its own listeners for the start of every recording and for every snapshot (every 5 minutes, and on every resume). None of them was ever let go of, so memory grew for as long as the server ran, and every recording stayed in memory after it stopped, with everything it had recorded about the world. Their Fabric API sessions are now ended once they are no longer used, without telling anyone that a player left.
+- **The last chunk recording that started.** The invisible player of a chunk recording is registered like a real player, and the server kept its advancements, which point back at the recording, after it stopped.
+- **A recording whose save failed** (for example when the disk is full). Server Replay only lets go of a recording once it is saved, so it stayed in memory with the data of its last replay chunk, and with `zip_while_recording`, a thread. The recording folder is left as it is.
+- **Recordings that saw a hidden boss bar**, such as the one of the dragon fight after the dragon is dead. The boss bar lives as long as the world, and kept the recording.
+- **Entities that left while a recording was paused**, which `ignore_entities` kept track of until the recording stopped.
+
+### Writing replay chunks as they are recorded
+
+Server Replay keeps the replay chunk that is being recorded (up to 5 minutes) in memory, and copies it once more when it ends. With many entities or block changes, that can be hundreds of megabytes for each recording, and the memory is kept for as long as the recording runs.
+
+With `stream_replay_chunks` at `true`, the replay chunk is written to its file (`c<number>.flashback` in the recording folder) every 4 MiB, and only the rest is in memory. The file is the same as when it is written at the end.
+
+- A replay chunk that is not complete yet is not listed in `metadata.json`, so after a crash it is left out, as before. [Recovery](#recovering-recordings-after-a-crash) is the same.
+- The raw size of a recording (`/replay status`, `max_file_size`) counts what was written early.
+
+### Lighter entity tracking
+
+The Flashback format records the current state (a snapshot) when a recording starts and every 5 minutes. For each chunk it sends, Server Replay goes through every entity of the world to find the ones in that chunk, so the more chunks and entities there are, the longer the server stops. It does the same for a chunk that is loaded into a recording, for example when a player comes near it.
+
+With `optimize_entity_tracking` at `true`:
+
+- For a snapshot and the start of a recording, the entities are sorted into their chunks once, before the chunks are sent. The packets that are recorded, and their order, stay the same.
+- For a chunk that is sent on its own, only the entities near the chunk are looked at. The same entities are recorded, but the ones in a chunk may come in another order, which makes no difference in the replay.
+- Every time a player moves to another 16×16×16 section, the server updates every entity it tracks, and Server Replay goes through every chunk recording for each of them. That answer only changes when the entity moves to another chunk or a chunk recording starts or stops, so it is kept until then.
 
 In a test that recorded 31×31 chunks with 20,000 entities, the server stopped for:
 
@@ -139,7 +165,7 @@ Even with `chunk_recording_strategy` at `chunk_contains_non_spectator_player` in
 - Players swing their arm when they place or mine a block, hit something or use an item. Walking, sprinting and looking around do not, so a player who only moves around lets the recording pause. Players in spectator mode never count.
 - Block actions that `ignore_block_action` or `block_update_interval_ticks` leave out of the recording count, and so do the arm swings of players that `ignore_entities` leaves out.
 - A carpet bot kept on `/player ... attack` or `/player ... use` swings its arm all the time, so the recording does not pause.
-- When a recording resumes, the Flashback format takes a new snapshot. Each resume therefore stops the server for as long as [the snapshot every 5 minutes](#faster-snapshots) does, and adds to the terrain caches. A minute or two is recommended, so that the recording does not pause and resume again between the moves of a machine.
+- When a recording resumes, the Flashback format takes a new snapshot. Each resume therefore stops the server for as long as [the snapshot every 5 minutes](#lighter-entity-tracking) does, and adds to the terrain caches. A minute or two is recommended, so that the recording does not pause and resume again between the moves of a machine.
 - The block action or arm swing that resumes a recording is not recorded itself. Of what happens while it is paused, only the result is in the snapshot that is taken when it resumes. For example, water draining away after the pistons stop is missing from the point the recording paused.
 - The time of day and the weather jump ahead, by the time the recording was paused for, where it resumes.
 - While Server Replay keeps a recording paused for a reason of its own (no players in the area, no chunks loaded, an empty server), that reason wins. The time still counts towards this setting meanwhile, and once `pause_when_idle_seconds` has passed, the recording does not resume when Server Replay resumes it, until a block action or an arm swing happens. For example, if you turn to spectator mode in the air and back to survival a while later, the recording stays paused, without a new snapshot, as long as you do nothing. In the same way, while this setting keeps a recording paused, it does not resume even when the conditions of Server Replay are met.
@@ -195,9 +221,10 @@ The config that is created when there is no config file (`config/optimize-server
   "block_update_interval_ticks": 0,
   "optimize_saving": true,
   "zip_while_recording": false,
-  "optimize_snapshot": true,
   "zip_compression_level": 1,
-  "pause_when_idle_seconds": 0
+  "pause_when_idle_seconds": 0,
+  "stream_replay_chunks": true,
+  "optimize_entity_tracking": true
 }
 ```
 
