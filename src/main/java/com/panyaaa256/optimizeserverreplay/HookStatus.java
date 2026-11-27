@@ -35,7 +35,8 @@ public final class HookStatus {
 	);
 
 	/**
-	 * The hooks that {@code optimize_snapshot} needs, by the name of their handler. ChunkMap is
+	 * The hooks that sorting the entities into their chunks for a snapshot
+	 * ({@code optimize_entity_tracking}) needs, by the name of their handler. ChunkMap is
 	 * named differently at runtime, so they are matched by the handler alone.
 	 */
 	public static final Set<String> SNAPSHOT_HOOKS = Set.of(
@@ -147,8 +148,8 @@ public final class HookStatus {
 
 		if (WARNED_SNAPSHOT.compareAndSet(false, true)) {
 			LOGGER.warn(
-				"optimize_snapshot is turned off: the installed Server Replay / Arcade versions do not match, "
-					+ "so these hooks were not applied: {}. Snapshots are taken the usual way.",
+				"Sorting the entities into their chunks for snapshots (optimize_entity_tracking) is turned off: the installed Server Replay / Arcade versions do not match, "
+					+ "so these hooks were not applied: {}. The entities near each chunk are looked up instead.",
 				missing
 			);
 		}

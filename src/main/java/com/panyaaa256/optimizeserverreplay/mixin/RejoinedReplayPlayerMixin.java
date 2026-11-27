@@ -1,7 +1,6 @@
 package com.panyaaa256.optimizeserverreplay.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
-import com.panyaaa256.optimizeserverreplay.config.FilterConfig;
 import com.panyaaa256.optimizeserverreplay.leak.NetworkingSessions;
 import net.casual.arcade.replay.recorder.rejoin.RejoinConfigurationPacketListener;
 import net.casual.arcade.replay.recorder.rejoin.RejoinedReplayPlayer;
@@ -22,9 +21,7 @@ public abstract class RejoinedReplayPlayerMixin {
 		@Local RejoinedReplayPlayer rejoined,
 		@Local RejoinConfigurationPacketListener config
 	) {
-		if (FilterConfig.current().fixMemoryLeaks()) {
-			NetworkingSessions.end(config);
-			NetworkingSessions.end(rejoined.connection);
-		}
+		NetworkingSessions.end(config);
+		NetworkingSessions.end(rejoined.connection);
 	}
 }

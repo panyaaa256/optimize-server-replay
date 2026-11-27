@@ -145,11 +145,6 @@ public abstract class ReplayRecorderMixin implements RecordingFilterHolder {
 		if (!closing.get()) {
 			return;
 		}
-		FilterConfig config = this.osr$config();
-		if (!(config == null ? FilterConfig.current() : config).fixMemoryLeaks()) {
-			return;
-		}
-
 		ReplayRecorder recorder = (ReplayRecorder) (Object) this;
 		ReplayWriter writer = this.getWriter();
 		try {

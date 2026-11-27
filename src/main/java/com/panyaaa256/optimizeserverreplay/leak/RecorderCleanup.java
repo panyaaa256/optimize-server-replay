@@ -18,7 +18,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Lets go of what Arcade keeps of a recording after it stops ({@code fix_memory_leaks}).
+ * Lets go of what Arcade keeps of a recording after it stops. These are fixes, which change
+ * nothing that is recorded, so they have no setting.
  */
 public final class RecorderCleanup {
 	private RecorderCleanup() {

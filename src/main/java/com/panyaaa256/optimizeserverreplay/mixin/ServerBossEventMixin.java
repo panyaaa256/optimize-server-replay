@@ -1,6 +1,5 @@
 package com.panyaaa256.optimizeserverreplay.mixin;
 
-import com.panyaaa256.optimizeserverreplay.config.FilterConfig;
 import net.casual.arcade.replay.recorder.chunk.ReplayChunkRecordable;
 import net.casual.arcade.replay.recorder.chunk.ReplayChunkRecorder;
 import net.minecraft.server.level.ServerBossEvent;
@@ -22,7 +21,7 @@ public abstract class ServerBossEventMixin {
 	@Inject(method = "addRecorder", at = @At("TAIL"), remap = false)
 	private void osr$onAddRecorder(ReplayChunkRecorder recorder, CallbackInfo ci) {
 		ReplayChunkRecordable self = (ReplayChunkRecordable) this;
-		if (FilterConfig.current().fixMemoryLeaks() && self.getRecorders().contains(recorder)) {
+		if (self.getRecorders().contains(recorder)) {
 			recorder.addRecordable(self);
 		}
 	}
@@ -30,7 +29,7 @@ public abstract class ServerBossEventMixin {
 	@Inject(method = "removeRecorder", at = @At("TAIL"), remap = false)
 	private void osr$onRemoveRecorder(ReplayChunkRecorder recorder, CallbackInfo ci) {
 		ReplayChunkRecordable self = (ReplayChunkRecordable) this;
-		if (FilterConfig.current().fixMemoryLeaks() && !self.getRecorders().contains(recorder)) {
+		if (!self.getRecorders().contains(recorder)) {
 			recorder.removeRecordable(self);
 		}
 	}

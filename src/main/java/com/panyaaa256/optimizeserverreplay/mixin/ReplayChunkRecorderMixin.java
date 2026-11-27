@@ -45,10 +45,10 @@ public abstract class ReplayChunkRecorderMixin {
 
 	/**
 	 * What {@code ChunkSender.sendChunk} does, with the entities of the chunk taken from
-	 * {@link #osr$entities} when the chunks of a snapshot or of the start of the recording are sent
-	 * (optimize_snapshot), or looked up around the chunk when a chunk is sent on its own because it
-	 * was loaded (optimize_entity_tracking). Arcade goes through every entity of the level for
-	 * every chunk it sends.
+	 * {@link #osr$entities} when the chunks of a snapshot or of the start of the recording are sent,
+	 * which keeps the order of the packets, or looked up around the chunk otherwise, such as when a
+	 * chunk is sent on its own because it was loaded (optimize_entity_tracking). Arcade goes through
+	 * every entity of the level for every chunk it sends.
 	 */
 	@Inject(method = "sendChunk", at = @At("HEAD"), cancellable = true)
 	private void osr$onSendChunk(LevelChunk chunk, ChunkSender.SeenEntities seen, CallbackInfo ci) {
@@ -110,7 +110,7 @@ public abstract class ReplayChunkRecorderMixin {
 	@Unique
 	private boolean osr$isOptimized() {
 		FilterConfig config = ((RecordingFilterHolder) this).osr$config();
-		return config != null && config.optimizeSnapshot() && HookStatus.snapshotHooksApplied();
+		return config != null && config.optimizeEntityTracking() && HookStatus.snapshotHooksApplied();
 	}
 
 	@Unique
